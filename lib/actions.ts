@@ -11,12 +11,17 @@ import { STATUS_LABEL } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { isAllowedEmail } from "@/lib/allowed-email";
+import { clientKey, rateLimit } from "@/lib/rate-limit";
 
 export type ActionState = { ok: boolean; error?: string; fieldErrors?: Record<string, string> };
 
 const linkSchema = z.object({
   label: z.string().trim().max(120),
-  url: z.string().trim().url("Link must be a full URL (https://…)"),
+  url: z
+    .string()
+    .trim()
+    .url("Link must be a full URL (https://…)")
+    .refine((u) => /^https?:\/\//i.test(u), "Only http(s) links are allowed"),
 });
 
 const initiativeSchema = z.object({
@@ -306,8 +311,15 @@ async function siteOrigin() {
   return `${h.get("x-forwarded-proto") ?? "http"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
 }
 
+async function limited(bucket: string, limit: number, windowMs: number): Promise<string | null> {
+  const res = rateLimit(clientKey(await headers(), bucket), limit, windowMs);
+  return res.ok ? null : `Too many attempts. Try again in ${Math.max(1, Math.ceil(res.retryAfterSec / 60))} min.`;
+}
+
 /** Email + password sign-in. Sessions persist in cookies and are refreshed by the proxy, so you stay signed in. */
 export async function signInWithPassword(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const wait = await limited("signin", 10, 15 * 60_000);
+  if (wait) return { ok: false, error: wait };
   const parsed = credentialsSchema.safeParse({ email: formData.get("email"), password: formData.get("password") });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
   if (!isAllowedEmail(parsed.data.email)) return { ok: false, error: "That address is not allowed to sign in to this WorkHub." };
@@ -321,6 +333,8 @@ export async function signInWithPassword(_prev: ActionState, formData: FormData)
 
 /** One-time registration for the allowed address. Refuses everyone else before touching Supabase. */
 export async function signUpWithPassword(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const wait = await limited("signup", 5, 60 * 60_000);
+  if (wait) return { ok: false, error: wait };
   const parsed = credentialsSchema.safeParse({ email: formData.get("email"), password: formData.get("password") });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
   if (String(formData.get("confirm") ?? "") !== parsed.data.password) return { ok: false, error: "Passwords don't match." };
@@ -340,6 +354,8 @@ export async function signUpWithPassword(_prev: ActionState, formData: FormData)
 }
 
 export async function requestPasswordReset(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const wait = await limited("reset", 5, 60 * 60_000);
+  if (wait) return { ok: false, error: wait };
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!z.string().email().safeParse(email).success) return { ok: false, error: "Enter a valid email" };
   // Same message for allowed and unknown addresses: no account enumeration.
