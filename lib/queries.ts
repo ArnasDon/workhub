@@ -279,6 +279,7 @@ export async function search(q: string): Promise<SearchResult> {
     .select({
       id: logEntries.id,
       initiativeId: logEntries.initiativeId,
+      kind: logEntries.kind,
       body: logEntries.body,
       createdAt: logEntries.createdAt,
       initiativeTitle: initiatives.title,
@@ -425,4 +426,29 @@ export async function getStreak(now = new Date()): Promise<Streak> {
     .from(logEntries)
     .where(gte(logEntries.createdAt, since));
   return computeStreak(rows.map((r) => r.createdAt), now);
+}
+
+// ── Decisions ───────────────────────────────────────────────────────────────
+
+export type DecisionEntry = LogEntry & { initiativeTitle: string; initiativeStatus: Initiative["status"]; initiativeArea: string };
+
+/** Every entry marked as a decision, newest first. */
+export async function listDecisions(limit = 200): Promise<DecisionEntry[]> {
+  const db = getDb();
+  return db
+    .select({
+      id: logEntries.id,
+      initiativeId: logEntries.initiativeId,
+      kind: logEntries.kind,
+      body: logEntries.body,
+      createdAt: logEntries.createdAt,
+      initiativeTitle: initiatives.title,
+      initiativeStatus: initiatives.status,
+      initiativeArea: initiatives.area,
+    })
+    .from(logEntries)
+    .innerJoin(initiatives, eq(initiatives.id, logEntries.initiativeId))
+    .where(eq(logEntries.kind, "decision"))
+    .orderBy(desc(logEntries.createdAt))
+    .limit(limit);
 }

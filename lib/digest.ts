@@ -21,7 +21,8 @@ export function digestToMarkdown(d: Digest): string {
     out.push(`## ${g.initiative.title}${meta ? ` (${meta})` : ""}`, "");
     for (const e of g.entries) {
       const lines = e.body.trim().split("\n");
-      out.push(`- **${format(e.createdAt, "EEE d MMM")}** — ${lines[0]}`);
+      const tag = e.kind === "decision" ? "Decision: " : e.kind === "blocker" ? "Blocker: " : "";
+      out.push(`- **${format(e.createdAt, "EEE d MMM")}** — ${tag}${lines[0]}`);
       for (const l of lines.slice(1)) out.push(`  ${l}`);
     }
     out.push("");

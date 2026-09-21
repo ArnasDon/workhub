@@ -42,7 +42,8 @@ async function seedIfEmpty(db: ReturnType<typeof drizzle<typeof schema>>) {
     .returning({ id: schema.initiatives.id, title: schema.initiatives.title });
   const id = (t: string) => rows.find((r) => r.title.startsWith(t))!.id;
   await db.insert(schema.logEntries).values([
-    { initiativeId: id("Node.js"), body: "Kickoff done. Decided to ship behind a feature flag and iterate on the gallery copy after the first week of data.", createdAt: ago(38) },
+    { initiativeId: id("Node.js"), kind: "decision", body: "Ship behind a **feature flag** and iterate on the gallery copy after the first week of data.", createdAt: ago(38) },
+    { initiativeId: id("Publish"), kind: "blocker", body: "Registry review blocked on the manifest schema question.", createdAt: ago(10) },
     { initiativeId: id("Node.js"), body: "Delayed to Q4 due to eng capacity. Design is final: https://example.com/figma", createdAt: ago(1) },
     { initiativeId: id("Publish"), body: "Registry review is stuck on the manifest schema. Pinged maintainers; waiting on an answer.", createdAt: ago(9) },
     { initiativeId: id("Google"), body: "Waiting on the Ads API partner approval. Ticket filed.", createdAt: ago(15) },

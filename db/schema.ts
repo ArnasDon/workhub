@@ -60,6 +60,17 @@ export const initiatives = pgTable(
   ],
 );
 
+/**
+ * What a log entry is. `update` is the default free-form note; `decision`,
+ * `blocker` and `meeting` are user-chosen; `status` and `task` are written
+ * by the app when a status changes or a to-do is completed.
+ */
+export const ENTRY_KINDS = ["update", "decision", "blocker", "meeting", "status", "task"] as const;
+export type EntryKind = (typeof ENTRY_KINDS)[number];
+/** Kinds the user can pick when writing an entry. */
+export const USER_ENTRY_KINDS = ["update", "decision", "blocker", "meeting"] as const;
+export const entryKindEnum = pgEnum("entry_kind", ENTRY_KINDS);
+
 export const logEntries = pgTable(
   "log_entries",
   {
@@ -67,12 +78,16 @@ export const logEntries = pgTable(
     initiativeId: uuid("initiative_id")
       .notNull()
       .references(() => initiatives.id, { onDelete: "cascade" }),
+    kind: entryKindEnum("kind").notNull().default("update"),
     body: text("body").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
       .notNull()
       .defaultNow(),
   },
-  (t) => [index("log_entries_initiative_created_idx").on(t.initiativeId, t.createdAt)],
+  (t) => [
+    index("log_entries_initiative_created_idx").on(t.initiativeId, t.createdAt),
+    index("log_entries_kind_created_idx").on(t.kind, t.createdAt),
+  ],
 );
 
 export const RELATION_KINDS = ["blocked_by", "related"] as const;
