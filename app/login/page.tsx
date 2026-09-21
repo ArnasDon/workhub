@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Sign in" };
 
 const ERRORS: Record<string, string> = {
   not_allowed: "This account is not allowed to use this WorkHub. Sign out and use the configured address.",
-  link_invalid: "That sign-in link is invalid or has expired. Request a new one.",
+  link_invalid: "That link is invalid or has expired. Request a new one.",
 };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
@@ -24,7 +24,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">WorkHub</h1>
           <p className="text-sm text-muted-foreground">
-            Your initiatives, with a running log. Sign in with a magic link.
+            Your initiatives, with a running log.
           </p>
         </div>
 

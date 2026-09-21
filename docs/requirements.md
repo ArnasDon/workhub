@@ -64,7 +64,7 @@ Several initiatives run at once (product OKRs, integrations, distribution/listin
 
 - Postgres via Supabase; Drizzle ORM over `DATABASE_URL`.
 - Free tier has no automated backups → manual JSON export is a v1 requirement (shipped).
-- Auth: Supabase magic link, restricted to `ALLOWED_EMAIL`.
+- Auth: Supabase email + password (registration limited to `ALLOWED_EMAIL`), persistent cookie session, password reset by email. Magic link was dropped 2026-09-21 at the owner's request.
 - Data ownership: plain JSON/Markdown export, no lock-in.
 
 ## 6. Tech Stack

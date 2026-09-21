@@ -173,22 +173,75 @@ export async function addLogEntry(input: { initiativeId: string; body: string })
   return { ok: true };
 }
 
-export async function sendMagicLink(_prev: ActionState, formData: FormData): Promise<ActionState> {
+// ── Auth ────────────────────────────────────────────────────────────────────
+
+const credentialsSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email"),
+  password: z.string().min(8, "Password must be at least 8 characters").max(200),
+});
+
+async function siteOrigin() {
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");
+  const h = await headers();
+  return `${h.get("x-forwarded-proto") ?? "http"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
+}
+
+/** Email + password sign-in. Sessions persist in cookies and are refreshed by the proxy, so you stay signed in. */
+export async function signInWithPassword(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = credentialsSchema.safeParse({ email: formData.get("email"), password: formData.get("password") });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
+  if (!isAllowedEmail(parsed.data.email)) return { ok: false, error: "That address is not allowed to sign in to this WorkHub." };
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  if (error) {
+    return { ok: false, error: /confirm/i.test(error.message) ? "Confirm your email first (check your inbox), then sign in." : "Wrong email or password." };
+  }
+  redirect("/");
+}
+
+/** One-time registration for the allowed address. Refuses everyone else before touching Supabase. */
+export async function signUpWithPassword(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = credentialsSchema.safeParse({ email: formData.get("email"), password: formData.get("password") });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
+  if (String(formData.get("confirm") ?? "") !== parsed.data.password) return { ok: false, error: "Passwords don't match." };
+  if (!isAllowedEmail(parsed.data.email)) return { ok: false, error: "Only the configured address can create an account here." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signUp({
+    ...parsed.data,
+    options: { emailRedirectTo: `${await siteOrigin()}/auth/callback` },
+  });
+  if (error) return { ok: false, error: error.message };
+  // With email confirmation enabled Supabase returns a user with no identities for an existing address.
+  if (data.user && data.user.identities?.length === 0) {
+    return { ok: false, error: "An account already exists for this address. Sign in instead, or reset the password." };
+  }
+  if (data.session) redirect("/");
+  return { ok: true, error: "Account created. Confirm the email we just sent, then sign in." };
+}
+
+export async function requestPasswordReset(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!z.string().email().safeParse(email).success) return { ok: false, error: "Enter a valid email" };
-  // Only the configured address may sign in; fail silently-but-politely for anyone else.
-  if (!isAllowedEmail(email)) {
-    return { ok: false, error: "That address is not allowed to sign in to this WorkHub." };
+  // Same message for allowed and unknown addresses: no account enumeration.
+  if (isAllowedEmail(email)) {
+    const supabase = await createClient();
+    await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${await siteOrigin()}/auth/callback?next=/account/password` });
   }
+  return { ok: true };
+}
+
+const newPasswordSchema = z.object({
+  password: z.string().min(8, "Password must be at least 8 characters").max(200),
+  confirm: z.string(),
+}).refine((v) => v.password === v.confirm, { message: "Passwords don't match.", path: ["confirm"] });
+
+/** Set a new password for the signed-in user (after a reset link, or from the account page). */
+export async function updatePassword(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireUser();
+  const parsed = newPasswordSchema.safeParse({ password: formData.get("password"), confirm: formData.get("confirm") });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
   const supabase = await createClient();
-  const h = await headers();
-  const origin =
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    `${h.get("x-forwarded-proto") ?? "http"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: `${origin}/auth/callback`, shouldCreateUser: true },
-  });
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
