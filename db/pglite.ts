@@ -48,6 +48,10 @@ async function seedIfEmpty(db: ReturnType<typeof drizzle<typeof schema>>) {
     { initiativeId: id("Google"), body: "Waiting on the Ads API partner approval. Ticket filed.", createdAt: ago(15) },
     { initiativeId: id("Headless"), body: "All 13 findings fixed, Lighthouse a11y 100. Closing.", createdAt: ago(12) },
   ]);
+  await db.insert(schema.initiativeRelations).values([
+    { fromId: id("Node.js"), toId: id("Publish"), kind: "blocked_by" },
+    { fromId: id("Weekly"), toId: id("Node.js"), kind: "related" },
+  ]);
   console.log("[workhub] seeded sample initiatives");
 }
 

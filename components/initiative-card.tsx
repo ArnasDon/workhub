@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, Clock, ExternalLink } from "lucide-react";
+import { Ban, CalendarDays, Clock, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { InitiativeWithActivity } from "@/lib/queries";
 import { PRIORITY_DOT, PRIORITY_LABEL } from "@/lib/constants";
@@ -62,6 +62,12 @@ export function InitiativeCard({ item, now }: { item: InitiativeWithActivity; no
           <span className="inline-flex items-center gap-1">
             <ExternalLink className="size-3.5" aria-hidden />
             {item.links.length}
+          </span>
+        )}
+        {item.openBlockers > 0 && item.status !== "done" && (
+          <span className="inline-flex items-center gap-1 font-medium text-status-blocked" title="Open blockers">
+            <Ban className="size-3.5" aria-hidden />
+            Blocked by {item.openBlockers}
           </span>
         )}
       </div>

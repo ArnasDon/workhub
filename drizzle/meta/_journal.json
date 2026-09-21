@@ -15,6 +15,13 @@
       "when": 1789994006357,
       "tag": "0001_rls_and_search",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790011296221,
+      "tag": "0002_initiative_relations",
+      "breakpoints": true
     }
   ]
 }

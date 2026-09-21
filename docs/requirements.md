@@ -46,7 +46,7 @@ Several initiatives run at once (product OKRs, integrations, distribution/listin
 - Pin/star initiatives — ✅ shipped (schema already had the column).
 
 **Medium value**
-- Cross-linking between initiatives ("blocked by X").
+- Cross-linking between initiatives ("blocked by X") — ✅ shipped (`initiative_relations`, migration 0002).
 - Calendar/timeline view for target dates.
 - Weekly digest view — ✅ shipped (`/digest`, 7/14/30 days, copy as Markdown).
 - File/image attachments on log entries.
@@ -119,6 +119,13 @@ log_entries
 - initiative_id (fk → initiatives.id, cascade)
 - body (text)
 - created_at (timestamptz)
+
+initiative_relations            -- added 2026-09-21 (migration 0002)
+- id (uuid, pk)
+- from_id, to_id (fk → initiatives.id, cascade; from ≠ to)
+- kind (enum relation_kind: blocked_by | related)
+- created_at (timestamptz)
+- unique (from_id, to_id, kind)
 ```
 
 Intentionally minimal. Resist adding fields until the update-log workflow proves a need.

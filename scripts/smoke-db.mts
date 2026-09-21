@@ -105,6 +105,31 @@ console.log("✓ search");
   console.log("✓ getDigest / digestToMarkdown");
 }
 
+// Relations: both directions, open-blocker counts, uniqueness, self-link check, cascade.
+{
+  const { initiativeRelations } = schema;
+  await db.insert(initiativeRelations).values({ fromId: a.id, toId: b.id, kind: "blocked_by" });
+  await db.insert(initiativeRelations).values({ fromId: a.id, toId: c.id, kind: "related" });
+  const fromA = await q.listRelations(a.id);
+  assert.deepEqual(fromA.map((r) => [r.direction, r.other.id]), [["blocked_by", b.id], ["related", c.id]]);
+  const fromB = await q.listRelations(b.id);
+  assert.deepEqual(fromB.map((r) => [r.direction, r.other.id]), [["blocks", a.id]]);
+  const withBlockers = await q.listInitiatives();
+  assert.equal(withBlockers.find((i) => i.id === a.id)?.openBlockers, 1, "b is blocked and counts as an open blocker");
+  assert.equal(withBlockers.find((i) => i.id === b.id)?.openBlockers, 0);
+  const causeMatches = (re: RegExp) => (err: unknown) => {
+    const cause = (err as { cause?: { message?: string } }).cause;
+    assert.match(cause?.message ?? String(err), re);
+    return true;
+  };
+  await assert.rejects(db.insert(initiativeRelations).values({ fromId: a.id, toId: b.id, kind: "blocked_by" }), causeMatches(/unique|duplicate/i));
+  await assert.rejects(db.insert(initiativeRelations).values({ fromId: a.id, toId: a.id, kind: "related" }), causeMatches(/check|no_self/i));
+  await db.update(initiatives).set({ status: "done" }).where(eq(initiatives.id, b.id));
+  assert.equal((await q.listInitiatives()).find((i) => i.id === a.id)?.openBlockers, 0, "done blockers no longer count");
+  await db.update(initiatives).set({ status: "blocked" }).where(eq(initiatives.id, b.id));
+  console.log("✓ relations");
+}
+
 // Detail + entries newest first.
 const entries = await q.listEntries(a.id);
 assert.equal(entries[0].body, "Delayed to Q4 due to eng capacity.");
@@ -120,9 +145,10 @@ const after = (await q.getInitiative(a.id))!.updatedAt;
 assert.ok(after > before, "updated_at trigger must bump the timestamp");
 console.log("✓ updated_at trigger");
 
-// Cascade delete removes entries.
+// Cascade delete removes entries and relations.
 await db.delete(initiatives).where(eq(initiatives.id, a.id));
 assert.equal((await q.listEntries(a.id)).length, 0);
+assert.equal((await q.listRelations(b.id)).length, 0, "relations pointing at a deleted initiative are gone");
 console.log("✓ cascade delete");
 
 // Export shape.

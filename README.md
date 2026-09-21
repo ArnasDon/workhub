@@ -7,6 +7,7 @@ Single-user. Next.js 16 (App Router) · TypeScript · Tailwind 4 · shadcn/ui (R
 ## What's in v1
 
 - Initiatives: title, area/tag, status, priority, target date, links, pin.
+- **Related work**: link initiatives as "blocked by" or "related". Cards show "Blocked by N" while any blocker is still open; links and unlinks are written to the log.
 - Status flow `Idea → In progress → Blocked → Waiting on someone → Done → Archived`, changeable inline from the dashboard card or the detail page. Every change is written to the log.
 - Append-only log per initiative, grouped by day. Entries are GitHub-flavoured Markdown: lists, bold, code, tables, task lists; bare URLs become links. Raw HTML is never rendered.
 - Dashboard grouped by status or area, sortable, area filter chips, "updated Xd ago", stale flag after 7 days, pinned items first.
@@ -44,7 +45,7 @@ npm install
 npm run db:migrate
 ```
 
-This applies `drizzle/*.sql`: the two tables, enums, indexes, full-text indexes, an `updated_at` trigger, and enables RLS so the public Supabase REST API exposes nothing (the app talks to Postgres directly through `DATABASE_URL`).
+This applies `drizzle/*.sql`: the tables, enums, indexes, full-text indexes, an `updated_at` trigger, and enables RLS so the public Supabase REST API exposes nothing (the app talks to Postgres directly through `DATABASE_URL`). Apply new files in order whenever `drizzle/` gains one; the app tolerates a missing `initiative_relations` table (relations just appear empty) so deploying before migrating is safe.
 
 ### 4. Run
 
@@ -124,4 +125,4 @@ proxy.ts                 Next 16 request proxy (formerly middleware)
 
 ## Roadmap
 
-See the phased plan in `docs/requirements.md`. AI-assisted features are parked for now. Candidates next: cross-links between initiatives, activity streak, CSV export.
+See the phased plan in `docs/requirements.md`. AI-assisted features are parked for now. Candidates next: activity streak, CSV export.

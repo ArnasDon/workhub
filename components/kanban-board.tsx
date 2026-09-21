@@ -17,7 +17,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowRightLeft, Clock, ExternalLink, GripVertical, MoreHorizontal, Pin } from "lucide-react";
+import { ArrowRightLeft, Ban, Clock, ExternalLink, GripVertical, MoreHorizontal, Pin } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { setStatus } from "@/lib/actions";
@@ -236,6 +236,12 @@ function BoardCard({
           <span className="inline-flex items-center gap-0.5">
             <ExternalLink className="size-3" aria-hidden />
             {item.links.length}
+          </span>
+        )}
+        {item.openBlockers > 0 && item.status !== "done" && (
+          <span className="inline-flex items-center gap-0.5 font-medium text-status-blocked" title="Open blockers">
+            <Ban className="size-3" aria-hidden />
+            {item.openBlockers}
           </span>
         )}
       </div>

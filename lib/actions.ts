@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { getDb } from "@/db";
-import { initiatives, logEntries, PRIORITIES, STATUSES, type Link } from "@/db/schema";
+import { initiativeRelations, initiatives, logEntries, PRIORITIES, RELATION_KINDS, STATUSES, type Link } from "@/db/schema";
 import { STATUS_LABEL } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -170,6 +170,55 @@ export async function addLogEntry(input: { initiativeId: string; body: string })
   await db.update(initiatives).set({ updatedAt: new Date() }).where(eq(initiatives.id, parsed.data.initiativeId));
   revalidatePath("/");
   revalidatePath(`/initiatives/${parsed.data.initiativeId}`);
+  return { ok: true };
+}
+
+// ── Relations ───────────────────────────────────────────────────────────────
+
+const relationSchema = z
+  .object({ fromId: z.string().uuid(), toId: z.string().uuid(), kind: z.enum(RELATION_KINDS) })
+  .refine((v) => v.fromId !== v.toId, { message: "An initiative cannot relate to itself" });
+
+/** Link two initiatives. Logged on the initiative the link was added from. */
+export async function addRelation(input: { fromId: string; toId: string; kind: string }): Promise<ActionState> {
+  await requireUser();
+  const parsed = relationSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid relation" };
+  const { fromId, toId, kind } = parsed.data;
+  const db = getDb();
+  const [target] = await db.select({ title: initiatives.title }).from(initiatives).where(eq(initiatives.id, toId));
+  if (!target) return { ok: false, error: "Initiative not found" };
+  const inserted = await db
+    .insert(initiativeRelations)
+    .values({ fromId, toId, kind })
+    .onConflictDoNothing()
+    .returning({ id: initiativeRelations.id });
+  if (inserted.length === 0) return { ok: false, error: "That link already exists" };
+  await db.insert(logEntries).values({
+    initiativeId: fromId,
+    body: kind === "blocked_by" ? `Blocked by “${target.title}”` : `Related to “${target.title}”`,
+  });
+  await db.update(initiatives).set({ updatedAt: new Date() }).where(eq(initiatives.id, fromId));
+  revalidatePath("/");
+  revalidatePath(`/initiatives/${fromId}`);
+  revalidatePath(`/initiatives/${toId}`);
+  return { ok: true };
+}
+
+export async function removeRelation(id: string): Promise<ActionState> {
+  await requireUser();
+  if (!z.string().uuid().safeParse(id).success) return { ok: false, error: "Invalid relation" };
+  const db = getDb();
+  const [rel] = await db.delete(initiativeRelations).where(eq(initiativeRelations.id, id)).returning();
+  if (!rel) return { ok: false, error: "Link not found" };
+  const [target] = await db.select({ title: initiatives.title }).from(initiatives).where(eq(initiatives.id, rel.toId));
+  await db.insert(logEntries).values({
+    initiativeId: rel.fromId,
+    body: rel.kind === "blocked_by" ? `No longer blocked by “${target?.title ?? "an initiative"}”` : `Unlinked from “${target?.title ?? "an initiative"}”`,
+  });
+  revalidatePath("/");
+  revalidatePath(`/initiatives/${rel.fromId}`);
+  revalidatePath(`/initiatives/${rel.toId}`);
   return { ok: true };
 }
 
