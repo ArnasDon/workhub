@@ -82,6 +82,16 @@ then hand that file to the Hostinger deploy tool (or hPanel's Node.js upload). B
 
 Vercel works too with the first three variables plus `ALLOWED_EMAIL`; no config changes needed.
 
+## Security model
+
+- **One user.** Sign-in and registration refuse any address not in `ALLOWED_EMAIL`, checked in the request proxy *and* in every server action (`requireUser()`).
+- **Database access** goes through `DATABASE_URL` server-side only. Every table has RLS enabled with no policies, so Supabase's public REST API exposes nothing even with the anon key.
+- **Session cookies are HttpOnly**, `SameSite=Lax`, `Secure` in production. The app has no browser-side Supabase client, so page JavaScript never touches tokens.
+- **Content Security Policy** with a per-request nonce (`script-src 'self' 'nonce-…' 'strict-dynamic'`), plus `frame-ancestors 'none'`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, HSTS on https, and `X-Robots-Tag: noindex` (also `robots.txt` disallow). Set in `lib/security-headers.ts`, applied by the proxy.
+- **Auth actions are rate-limited** per IP (10 sign-in attempts / 15 min; 5 sign-ups and 5 reset requests / hour) in addition to Supabase's own limits.
+- **Input validation** with zod on every action; external links must be http(s); Markdown never renders raw HTML and strips unsafe URL schemes; the auth callback only follows same-origin `next` paths.
+- Dependencies are audited in CI (`npm audit --audit-level=high`).
+
 ## Backups
 
 Supabase's free tier has no automated backups. Use **Export → JSON** in the header now and then; the file contains every initiative and log entry with ids and timestamps, so it can be re-imported by hand or with a short script. The Markdown export is the human-readable version of the same data.
