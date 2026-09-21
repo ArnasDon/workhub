@@ -10,3 +10,5 @@
 - Dev server port is 4700. Build must pass with no `.env.local` (`getDb()` is lazy for that reason).
 - Checks before pushing: `npm run lint && npm run typecheck && npm run build`.
 - Auth is email + password (not magic link). Registration and sign-in both refuse any address not in `ALLOWED_EMAIL`; the proxy and `requireUser()` enforce the same check on every request.
+- To verify UI end to end without Supabase: `npm run dev:local` (PGlite + mock auth at scripts/mock-auth.mjs; sign in as local@workhub.dev, any password). Use it before opening a PR that touches authenticated pages.
+- Schema changes: never touch the live database. Generate a new file under `drizzle/` and call it out in the PR; the owner applies it by hand.

@@ -10,6 +10,7 @@ Single-user. Next.js 16 (App Router) · TypeScript · Tailwind 4 · shadcn/ui (R
 - Status flow `Idea → In progress → Blocked → Waiting on someone → Done → Archived`, changeable inline from the dashboard card or the detail page. Every change is written to the log.
 - Append-only log per initiative, grouped by day, links clickable.
 - Dashboard grouped by status or area, sortable, area filter chips, "updated Xd ago", stale flag after 7 days, pinned items first.
+- **Board view** (`/board`): one column per status, drag cards between columns (mouse, touch, or keyboard), or use the card menu's "Move to". Every move is written to the log.
 - Quick capture: `⌘K` → pick an initiative → type → `⌘Enter`. Every card also has a "Log update" button that opens the same dialog pre-targeted.
 - Full-text search over titles, areas, and log entries (`websearch` syntax: quotes, `-word`, `OR`).
 - Export everything as JSON (backup) or Markdown (readable) from the header.
@@ -49,6 +50,14 @@ This applies `drizzle/*.sql`: the two tables, enums, indexes, full-text indexes,
 npm run dev
 ```
 
+No Supabase yet? Run the whole app with an embedded database and a mock sign-in instead:
+
+```bash
+npm run dev:local
+```
+
+That starts PGlite (WASM Postgres, real migrations, sample data) plus a tiny mock of Supabase Auth. Sign in as `local@workhub.dev` with any password. Data persists in `.pglite-dev/`; delete the folder to reset. Nothing from this mode ships to production: it only activates when `DATABASE_URL` starts with `pglite://`.
+
 Open <http://localhost:4700>, switch to **Create account**, register with the `ALLOWED_EMAIL` address and a password (8+ characters). Afterwards use **Sign in**. "Forgot password?" emails a reset link that lands on `/account/password`, which is also where you change the password later (key icon in the header).
 
 ### 5. Deploy (Hostinger Node.js hosting)
@@ -78,6 +87,8 @@ Supabase's free tier has no automated backups. Use **Export → JSON** in the he
 npm run lint        # eslint
 npm run typecheck   # tsc --noEmit
 npm run build       # next build (works without a database)
+npm run dev:local   # full app on embedded Postgres + mock auth, no Supabase needed
+npm run test:db     # PGlite smoke test of migrations + queries
 npm run db:generate # after editing db/schema.ts: writes a new SQL migration
 npm run db:studio   # Drizzle Studio against DATABASE_URL
 ```
@@ -90,6 +101,7 @@ CI runs lint, typecheck, build and `npm audit --audit-level=high` on every push 
 app/
   (app)/                 authenticated shell: header + ⌘K palette
     page.tsx             dashboard (grouping, sort, filters, search results)
+    board/               Kanban board (dnd-kit), one column per status
     initiatives/new      create form
     initiatives/[id]     detail: metadata, status, log form, timeline
   login/                 sign in / create account / reset password
@@ -108,4 +120,4 @@ proxy.ts                 Next 16 request proxy (formerly middleware)
 
 ## Roadmap
 
-See the phased plan in `docs/requirements.md`. Next up: Kanban view, Markdown rendering in entries, weekly digest, and the Claude-assisted "summarise this into a log entry" button.
+See the phased plan in `docs/requirements.md`. Next up: Markdown rendering in entries, weekly digest, and the Claude-assisted "summarise this into a log entry" button.

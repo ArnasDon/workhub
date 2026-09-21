@@ -42,3 +42,6 @@ next-env.d.ts
 
 # keep the template
 !.env.example
+
+# local dev database (npm run dev:local)
+.pglite-dev/

@@ -1,7 +1,7 @@
 "use client";
 
 import { useOptimistic, useTransition } from "react";
-import { Pin, PinOff } from "lucide-react";
+import { Pin } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { togglePinned } from "@/lib/actions";
@@ -30,7 +30,7 @@ export function PinButton({ id, pinned, className }: { id: string; pinned: boole
             })
           }
         >
-          {optimistic ? <Pin className="size-4 fill-current" /> : <PinOff className="size-4" />}
+          <Pin className={cn("size-4", optimistic && "fill-current")} />
         </Button>
       </TooltipTrigger>
       <TooltipContent>{optimistic ? "Unpin" : "Pin to top"}</TooltipContent>
