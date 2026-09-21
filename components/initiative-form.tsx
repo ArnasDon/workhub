@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { MarkdownEditor } from "@/components/markdown-editor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Props = {
@@ -51,6 +52,19 @@ export function InitiativeForm({ action, initiative, areas, submitLabel, onSaved
           aria-invalid={Boolean(errors.title)}
         />
         {errors.title && <p className="text-sm text-destructive">{errors.title}</p>}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="description">Description</Label>
+        <MarkdownEditor
+          id="description"
+          name="description"
+          defaultValue={initiative?.description ?? ""}
+          placeholder="What is this, why does it matter, what does done look like? Markdown with a toolbar."
+          rows={5}
+          aria-invalid={Boolean(errors.description)}
+        />
+        {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

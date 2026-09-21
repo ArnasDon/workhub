@@ -41,6 +41,8 @@ export function InitiativeCard({ item, now }: { item: InitiativeWithActivity; no
 
       {item.latestEntry ? (
         <p className="line-clamp-3 text-sm text-muted-foreground">{plainText(item.latestEntry.body)}</p>
+      ) : item.description.trim() ? (
+        <p className="line-clamp-3 text-sm text-muted-foreground">{plainText(item.description)}</p>
       ) : (
         <p className="text-sm italic text-muted-foreground/70">No updates yet.</p>
       )}

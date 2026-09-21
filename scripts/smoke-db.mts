@@ -32,7 +32,7 @@ console.log("✓ RLS enabled");
 const OLD = new Date("2026-08-01T00:00:00Z");
 const [a] = await db
   .insert(initiatives)
-  .values({ title: "Node.js hosting launch", area: "Node.js Hosting", status: "in_progress", priority: "high", targetDate: "2026-11-30", links: [{ label: "Doc", url: "https://example.com/doc" }], createdAt: OLD, updatedAt: OLD })
+  .values({ title: "Node.js hosting launch", description: "## Why\nShip **fast**.", area: "Node.js Hosting", status: "in_progress", priority: "high", targetDate: "2026-11-30", links: [{ label: "Doc", url: "https://example.com/doc" }], createdAt: OLD, updatedAt: OLD })
   .returning();
 const [b] = await db
   .insert(initiatives)
@@ -54,6 +54,8 @@ assert.equal(nodeRow.entryCount, 2);
 assert.equal(nodeRow.latestEntry?.body, "Delayed to Q4 due to eng capacity.");
 assert.equal(nodeRow.lastActivityAt.toISOString(), "2026-09-20T09:00:00.000Z");
 assert.deepEqual(nodeRow.links, [{ label: "Doc", url: "https://example.com/doc" }]);
+assert.equal(nodeRow.description, "## Why\nShip **fast**.");
+assert.equal((await q.listInitiatives()).find((i) => i.id === b.id)?.description, "", "description defaults to empty");
 const withArchived = await q.listInitiatives({ includeArchived: true });
 assert.equal(withArchived.length, 3);
 const filtered = await q.listInitiatives({ area: "MCP Distribution" });

@@ -14,6 +14,7 @@ import { DeleteInitiativeButton } from "@/components/delete-initiative-button";
 import { LogEntryForm } from "@/components/log-entry-form";
 import { LogTimeline } from "@/components/log-timeline";
 import { RelationsPanel } from "@/components/relations-panel";
+import { Markdown } from "@/components/markdown";
 import { TaskList } from "@/components/task-list";
 import { Badge } from "@/components/ui/badge";
 
@@ -104,6 +105,12 @@ export default async function InitiativePage({ params }: PageProps<"/initiatives
           </ul>
         )}
       </div>
+
+      {initiative.description.trim() && (
+        <section aria-label="Description" className="rounded-2xl border bg-card p-4 shadow-xs sm:p-5">
+          <Markdown text={initiative.description} className="break-words" />
+        </section>
+      )}
 
       <TaskList initiativeId={initiative.id} tasks={taskRows} />
 
