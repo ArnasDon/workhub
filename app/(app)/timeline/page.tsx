@@ -120,7 +120,8 @@ function Row({ item }: { item: Dated }) {
   const late = item.days < 0 && item.status !== "done";
   const soon = !late && item.days >= 0 && item.days <= 7 && item.status !== "done";
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
+    <li className="group relative flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
+      <Link href={`/initiatives/${item.id}`} aria-label={`Open ${item.title}`} tabIndex={-1} className="absolute inset-0" />
       <time
         dateTime={item.targetDate}
         className={cn(
@@ -133,7 +134,7 @@ function Row({ item }: { item: Dated }) {
       </time>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <Link href={`/initiatives/${item.id}`} className="inline-flex items-baseline gap-2 font-medium hover:underline underline-offset-4">
+          <Link href={`/initiatives/${item.id}`} className="relative z-10 inline-flex items-baseline gap-2 font-medium group-hover:underline underline-offset-4">
             <span className={cn("size-2 shrink-0 self-center rounded-full", PRIORITY_DOT[item.priority])} aria-label={`${PRIORITY_LABEL[item.priority]} priority`} />
             {item.title}
           </Link>

@@ -173,15 +173,16 @@ function BoardCard({
   return (
     <article
       className={cn(
-        "group flex flex-col gap-2 rounded-xl border bg-card p-3 shadow-xs",
+        "group relative flex flex-col gap-2 rounded-xl border bg-card p-3 shadow-xs transition-colors hover:border-primary/40",
         overlay && "rotate-1 shadow-lg ring-2 ring-primary/30",
         item.pinned && "border-primary/30",
       )}
     >
-      <div className="flex items-start gap-1.5">
+      {!overlay && <Link href={`/initiatives/${item.id}`} aria-label={`Open ${item.title}`} tabIndex={-1} className="absolute inset-0 rounded-xl" />}
+      <div className="relative z-10 flex items-start gap-1.5 pointer-events-none">
         <button
           type="button"
-          className="-ml-1 mt-0.5 shrink-0 cursor-grab touch-none rounded text-muted-foreground/60 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing"
+          className="pointer-events-auto -ml-1 mt-0.5 shrink-0 cursor-grab touch-none rounded text-muted-foreground/60 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing"
           aria-label={`Drag ${item.title}`}
           {...handleProps}
         >
@@ -189,14 +190,14 @@ function BoardCard({
         </button>
         <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", PRIORITY_DOT[item.priority])} aria-label={`${PRIORITY_LABEL[item.priority]} priority`} />
         <h3 className="min-w-0 flex-1 text-sm font-semibold leading-snug">
-          <Link href={`/initiatives/${item.id}`} className="hover:underline underline-offset-4">
+          <Link href={`/initiatives/${item.id}`} className="pointer-events-auto group-hover:underline underline-offset-4">
             {item.title}
           </Link>
         </h3>
         {item.pinned && <Pin className="mt-0.5 size-3.5 shrink-0 fill-current text-primary" aria-label="Pinned" />}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button type="button" variant="ghost" size="icon-xs" aria-label={`Actions for ${item.title}`} className="-mr-1 -mt-0.5 text-muted-foreground">
+            <Button type="button" variant="ghost" size="icon-xs" aria-label={`Actions for ${item.title}`} className="pointer-events-auto -mr-1 -mt-0.5 text-muted-foreground">
               <MoreHorizontal className="size-4" />
             </Button>
           </DropdownMenuTrigger>
