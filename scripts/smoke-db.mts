@@ -130,6 +130,30 @@ console.log("✓ search");
   console.log("✓ relations");
 }
 
+// Streak rule + CSV escaping (pure), and getStreak against the seeded rows.
+{
+  const day = (s: string) => new Date(`${s}T10:00:00Z`);
+  const now = new Date("2026-09-21T12:00:00Z");
+  let st = q.computeStreak([day("2026-09-21"), day("2026-09-20"), day("2026-09-19"), day("2026-09-10")], now);
+  assert.equal(st.days, 3);
+  assert.equal(st.loggedToday, true);
+  assert.equal(st.thisWeek, 3);
+  st = q.computeStreak([day("2026-09-20"), day("2026-09-19")], now);
+  assert.equal(st.days, 2, "an empty today does not break yesterday's streak");
+  assert.equal(st.loggedToday, false);
+  st = q.computeStreak([day("2026-09-18")], now);
+  assert.equal(st.days, 0, "a gap of a day ends the streak");
+  assert.equal(q.computeStreak([], now).lastEntryAt, null);
+  const live = await q.getStreak(now);
+  assert.equal(live.thisWeek, 1);
+  assert.equal(live.days, 1, "seeded entry on 2026-09-20 is yesterday → streak of 1");
+  console.log("✓ computeStreak / getStreak");
+  const { toCsv } = await import("../lib/csv");
+  const csv = toCsv(["a", "b"], [["plain", 'say "hi", ok\nnext'], [null, 3]]);
+  assert.equal(csv, '﻿a,b\r\nplain,"say ""hi"", ok\nnext"\r\n,3\r\n');
+  console.log("✓ toCsv");
+}
+
 // Detail + entries newest first.
 const entries = await q.listEntries(a.id);
 assert.equal(entries[0].body, "Delayed to Q4 due to eng capacity.");

@@ -321,3 +321,44 @@ export async function getDigest(days = 7, now = new Date()): Promise<Digest> {
     quiet: all.filter((i) => active.has(i.status) && i.lastActivityAt < since),
   };
 }
+
+// ── Activity streak ─────────────────────────────────────────────────────────
+
+export type Streak = {
+  /** Consecutive days with at least one entry, counting back from today (or yesterday if today is empty). */
+  days: number;
+  loggedToday: boolean;
+  /** Entries in the last 7 days. */
+  thisWeek: number;
+  lastEntryAt: Date | null;
+};
+
+const dayKey = (d: Date) => d.toISOString().slice(0, 10);
+
+/** Pure helper so the streak rule is testable without a database. */
+export function computeStreak(entryDates: Date[], now = new Date()): Streak {
+  const days = new Set(entryDates.map(dayKey));
+  const weekAgo = now.getTime() - 7 * 86_400_000;
+  const thisWeek = entryDates.filter((d) => d.getTime() >= weekAgo).length;
+  const lastEntryAt = entryDates.reduce<Date | null>((m, d) => (!m || d > m ? d : m), null);
+  const loggedToday = days.has(dayKey(now));
+  // Start from today if logged, otherwise from yesterday (today isn't over yet).
+  const cursor = new Date(now);
+  if (!loggedToday) cursor.setUTCDate(cursor.getUTCDate() - 1);
+  let streak = 0;
+  while (days.has(dayKey(cursor))) {
+    streak += 1;
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+  }
+  return { days: streak, loggedToday, thisWeek, lastEntryAt };
+}
+
+export async function getStreak(now = new Date()): Promise<Streak> {
+  const db = getDb();
+  const since = new Date(now.getTime() - 120 * 86_400_000);
+  const rows = await db
+    .select({ createdAt: logEntries.createdAt })
+    .from(logEntries)
+    .where(gte(logEntries.createdAt, since));
+  return computeStreak(rows.map((r) => r.createdAt), now);
+}

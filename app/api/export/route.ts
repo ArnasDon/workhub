@@ -3,18 +3,57 @@ import { format } from "date-fns";
 import { requireUser } from "@/lib/auth";
 import { exportAll } from "@/lib/queries";
 import { STATUS_LABEL, PRIORITY_LABEL } from "@/lib/constants";
+import { toCsv } from "@/lib/csv";
 
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/export?format=json|md
+ * GET /api/export?format=json|md|csv[&table=initiatives|entries]
  * Your backup and exit ramp: everything, in a format you can read without this app.
+ * CSV defaults to log entries joined with their initiative; table=initiatives gives one row per initiative.
  */
 export async function GET(request: NextRequest) {
   await requireUser();
-  const fmt = request.nextUrl.searchParams.get("format") === "md" ? "md" : "json";
+  const requested = request.nextUrl.searchParams.get("format");
+  const fmt = requested === "md" || requested === "csv" ? requested : "json";
   const data = await exportAll();
   const stamp = format(new Date(), "yyyy-MM-dd-HHmm");
+
+  if (fmt === "csv") {
+    const table = request.nextUrl.searchParams.get("table") === "initiatives" ? "initiatives" : "entries";
+    const byId = new Map(data.initiatives.map((i) => [i.id, i]));
+    const csv =
+      table === "initiatives"
+        ? toCsv(
+            ["id", "title", "area", "status", "priority", "target_date", "pinned", "links", "created_at", "updated_at"],
+            data.initiatives.map((i) => [
+              i.id,
+              i.title,
+              i.area,
+              STATUS_LABEL[i.status],
+              PRIORITY_LABEL[i.priority],
+              i.targetDate ?? "",
+              i.pinned,
+              i.links.map((l) => `${l.label}: ${l.url}`).join(" | "),
+              i.createdAt.toISOString(),
+              i.updatedAt.toISOString(),
+            ]),
+          )
+        : toCsv(
+            ["entry_id", "created_at", "initiative_id", "initiative", "area", "status", "body"],
+            data.logEntries.map((e) => {
+              const i = byId.get(e.initiativeId);
+              return [e.id, e.createdAt.toISOString(), e.initiativeId, i?.title ?? "", i?.area ?? "", i ? STATUS_LABEL[i.status] : "", e.body];
+            }),
+          );
+    return new NextResponse(csv, {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="workhub-${table}-${stamp}.csv"`,
+        "Cache-Control": "no-store",
+      },
+    });
+  }
 
   if (fmt === "json") {
     return new NextResponse(JSON.stringify(data, null, 2), {
