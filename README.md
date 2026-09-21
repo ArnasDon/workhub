@@ -12,6 +12,7 @@ Single-user. Next.js 16 (App Router) · TypeScript · Tailwind 4 · shadcn/ui (R
 - Dashboard grouped by status or area, sortable, area filter chips, "updated Xd ago", stale flag after 7 days, pinned items first.
 - **Board view** (`/board`): one column per status, drag cards between columns (mouse, touch, or keyboard), or use the card menu's "Move to". Every move is written to the log.
 - Quick capture: `⌘K` → pick an initiative → type → `⌘Enter`. Every card also has a "Log update" button that opens the same dialog pre-targeted.
+- **Digest** (`/digest`): everything logged in the last 7, 14 or 30 days grouped by initiative, plus completed, new, and gone-quiet lists. **Copy as Markdown** for a status post or 1:1 notes.
 - Full-text search over titles, areas, and log entries (`websearch` syntax: quotes, `-word`, `OR`).
 - Export everything as JSON (backup) or Markdown (readable) from the header.
 - Warm cream/terracotta theme, light and dark, responsive down to phone width.
@@ -102,6 +103,7 @@ app/
   (app)/                 authenticated shell: header + ⌘K palette
     page.tsx             dashboard (grouping, sort, filters, search results)
     board/               Kanban board (dnd-kit), one column per status
+    digest/              weekly digest with copy-as-Markdown
     initiatives/new      create form
     initiatives/[id]     detail: metadata, status, log form, timeline
   login/                 sign in / create account / reset password
@@ -120,4 +122,4 @@ proxy.ts                 Next 16 request proxy (formerly middleware)
 
 ## Roadmap
 
-See the phased plan in `docs/requirements.md`. Next up: weekly digest, and the Claude-assisted "summarise this into a log entry" button.
+See the phased plan in `docs/requirements.md`. Next up: the Claude-assisted "summarise this into a log entry" button and an AI-drafted weekly summary.

@@ -48,7 +48,7 @@ Several initiatives run at once (product OKRs, integrations, distribution/listin
 **Medium value**
 - Cross-linking between initiatives ("blocked by X").
 - Calendar/timeline view for target dates.
-- Weekly digest view.
+- Weekly digest view — ✅ shipped (`/digest`, 7/14/30 days, copy as Markdown).
 - File/image attachments on log entries.
 - Light/dark warm theme toggle — ✅ shipped.
 - Activity streak indicator.

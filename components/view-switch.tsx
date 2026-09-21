@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Columns3, List } from "lucide-react";
+import { CalendarRange, Columns3, List } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-/** List ↔ Board toggle. Carries the ?area= filter across; drops the list-only params. */
+/** List / Board / Digest switch. Carries the ?area= filter between list and board. */
 export function ViewSwitch() {
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -15,6 +15,7 @@ export function ViewSwitch() {
   const items = [
     { href: `/${qs}`, label: "List", icon: List, active: pathname === "/" },
     { href: `/board${qs}`, label: "Board", icon: Columns3, active: pathname === "/board" },
+    { href: "/digest", label: "Digest", icon: CalendarRange, active: pathname === "/digest" },
   ];
   return (
     <div role="group" aria-label="View" className="hidden items-center rounded-lg border bg-card p-0.5 sm:inline-flex">
