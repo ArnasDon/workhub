@@ -26,3 +26,18 @@ export function targetLabel(targetDate: string | null, now = new Date()): { text
   const text = format(d, "d MMM");
   return { text, overdue: days < 0 };
 }
+
+/** Whole calendar days from `now` to a YYYY-MM-DD date; negative when in the past. */
+export function daysUntil(targetDate: string, now = new Date()): number {
+  return differenceInCalendarDays(new Date(`${targetDate}T00:00:00`), now);
+}
+
+export function dueLabel(days: number): string {
+  if (days === 0) return "Due today";
+  if (days === 1) return "Due tomorrow";
+  if (days === -1) return "1 day overdue";
+  if (days < 0) return `${-days} days overdue`;
+  if (days < 14) return `In ${days} days`;
+  if (days < 60) return `In ${Math.round(days / 7)} weeks`;
+  return `In ${Math.round(days / 30)} months`;
+}

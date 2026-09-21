@@ -95,7 +95,7 @@ Several initiatives run at once (product OKRs, integrations, distribution/listin
 - **Phase 1 — Core loop** ✅ initiative CRUD, log model, dashboard, detail page, status control everywhere.
 - **Phase 2 — Usability** ✅ quick capture, search, tags/areas filter, theme, responsive, JSON export.
 - **Phase 3 — Nice-to-haves** ✅ stale flag, ⌘K, pin, Kanban, Markdown rendering.
-- **Phase 4 — AI layer** ☐ summarize-into-entry, weekly digest.
+- **Phase 4 — AI layer** ⏸ parked by the owner (2026-09-21); the non-AI digest shipped instead.
 - **Phase 5 — Hardening** ☐ verify export/restore, auth edge cases, custom domain.
 
 Remaining human steps before first real use: create the Supabase project, fill `.env.local`, run `npm run db:migrate`, deploy.

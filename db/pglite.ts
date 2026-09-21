@@ -37,6 +37,7 @@ async function seedIfEmpty(db: ReturnType<typeof drizzle<typeof schema>>) {
       { title: "Weekly digest for 1:1s", area: "Side project", status: "idea", priority: "low", createdAt: ago(3), updatedAt: ago(3) },
       { title: "Headless landing page a11y pass", area: "Node.js Hosting", status: "done", priority: "medium", createdAt: ago(60), updatedAt: ago(12) },
       { title: "Onboarding email sequence", area: "Ads Integrations", status: "in_progress", priority: "low", createdAt: ago(20), updatedAt: ago(20) },
+      { title: "Partner listing copy refresh", area: "MCP Distribution", status: "in_progress", priority: "medium", targetDate: iso(-4), createdAt: ago(18), updatedAt: ago(18) },
     ])
     .returning({ id: schema.initiatives.id, title: schema.initiatives.title });
   const id = (t: string) => rows.find((r) => r.title.startsWith(t))!.id;
