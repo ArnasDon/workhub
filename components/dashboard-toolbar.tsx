@@ -45,7 +45,7 @@ export function DashboardToolbar({ grouping, sort, area, archived, areas }: Prop
         </div>
 
         <Select value={sort} onValueChange={(v) => router.push(withParams({ sort: v === "activity" ? null : v }))}>
-          <SelectTrigger size="sm" aria-label="Sort by" className="w-[150px] bg-card">
+          <SelectTrigger size="sm" aria-label="Sort by" className="w-auto gap-1.5 whitespace-nowrap bg-card [&>span]:overflow-visible">
             <span className="text-muted-foreground">Sort:</span>
             <SelectValue>{SORT_LABEL[sort]}</SelectValue>
           </SelectTrigger>
