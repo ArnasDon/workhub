@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Command as CommandIcon, CornerDownLeft, Plus, Search } from "lucide-react";
+import { ArrowLeft, CalendarRange, Command as CommandIcon, CornerDownLeft, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { addLogEntry } from "@/lib/actions";
@@ -175,6 +175,10 @@ export function QuickCapture({ initiatives }: { initiatives: InitiativeOption[] 
               <CommandItem value="new initiative create add" onSelect={() => go("/initiatives/new")}>
                 <Plus aria-hidden />
                 New initiative
+              </CommandItem>
+              <CommandItem value="weekly digest summary report" onSelect={() => go("/digest")}>
+                <CalendarRange aria-hidden />
+                Weekly digest
               </CommandItem>
               {trimmed && (
                 <CommandItem value={`search ${trimmed}`} onSelect={() => go(`/?q=${encodeURIComponent(trimmed)}`)}>

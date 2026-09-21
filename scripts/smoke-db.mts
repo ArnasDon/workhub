@@ -87,6 +87,24 @@ res = await q.search("");
 assert.deepEqual(res, { initiatives: [], entries: [] });
 console.log("✓ search");
 
+// Digest: entries in window grouped per initiative, quiet detection, markdown output.
+{
+  const { digestToMarkdown } = await import("../lib/digest");
+  const now = new Date("2026-09-21T12:00:00Z");
+  const d = await q.getDigest(7, now);
+  assert.equal(d.entryCount, 1, "only the 2026-09-20 entry is within 7 days");
+  assert.deepEqual(d.groups.map((g) => g.initiative.id), [a.id]);
+  assert.ok(d.quiet.some((i) => i.id === b.id), "blocked initiative with a 11-day-old entry is quiet");
+  const md = digestToMarkdown(d);
+  assert.match(md, /^# WorkHub digest/);
+  assert.match(md, /## Node.js hosting launch \(In progress · Node.js Hosting\)/);
+  assert.match(md, /Delayed to Q4/);
+  assert.match(md, /## Gone quiet/);
+  const wide = await q.getDigest(30, now);
+  assert.equal(wide.entryCount, 3);
+  console.log("✓ getDigest / digestToMarkdown");
+}
+
 // Detail + entries newest first.
 const entries = await q.listEntries(a.id);
 assert.equal(entries[0].body, "Delayed to Q4 due to eng capacity.");

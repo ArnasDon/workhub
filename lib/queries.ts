@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ilike, max, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, max, ne, or, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { initiatives, logEntries, type Initiative, type LogEntry } from "@/db/schema";
 import type { Sort } from "@/lib/constants";
@@ -191,4 +191,60 @@ export async function exportAll() {
     db.select().from(logEntries).orderBy(asc(logEntries.createdAt)),
   ]);
   return { exportedAt: new Date().toISOString(), initiatives: inits, logEntries: entries };
+}
+
+// ── Digest ──────────────────────────────────────────────────────────────────
+
+export type DigestGroup = {
+  initiative: Initiative;
+  entries: LogEntry[];
+};
+
+export type Digest = {
+  days: number;
+  since: Date;
+  until: Date;
+  entryCount: number;
+  /** Initiatives with at least one entry in the window, most recently active first. */
+  groups: DigestGroup[];
+  completed: InitiativeWithActivity[];
+  created: InitiativeWithActivity[];
+  /** Active initiatives with no entry in the window. */
+  quiet: InitiativeWithActivity[];
+};
+
+/** Everything that happened in the last `days` days, shaped for a status update. */
+export async function getDigest(days = 7, now = new Date()): Promise<Digest> {
+  const db = getDb();
+  const since = new Date(now.getTime() - days * 86_400_000);
+
+  const rows = await db
+    .select({ entry: logEntries, initiative: initiatives })
+    .from(logEntries)
+    .innerJoin(initiatives, eq(initiatives.id, logEntries.initiativeId))
+    .where(gte(logEntries.createdAt, since))
+    .orderBy(asc(logEntries.createdAt));
+
+  const byId = new Map<string, DigestGroup>();
+  for (const r of rows) {
+    const g = byId.get(r.initiative.id) ?? { initiative: r.initiative, entries: [] };
+    g.entries.push(r.entry);
+    byId.set(r.initiative.id, g);
+  }
+  const groups = [...byId.values()].sort(
+    (a, b) => b.entries[b.entries.length - 1].createdAt.getTime() - a.entries[a.entries.length - 1].createdAt.getTime(),
+  );
+
+  const all = await listInitiatives({ includeArchived: true });
+  const active = new Set<Initiative["status"]>(["in_progress", "blocked", "waiting"]);
+  return {
+    days,
+    since,
+    until: now,
+    entryCount: rows.length,
+    groups,
+    completed: all.filter((i) => i.status === "done" && i.lastActivityAt >= since),
+    created: all.filter((i) => i.createdAt >= since),
+    quiet: all.filter((i) => active.has(i.status) && i.lastActivityAt < since),
+  };
 }
