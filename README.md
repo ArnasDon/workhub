@@ -51,14 +51,22 @@ npm run dev
 
 Open <http://localhost:4700>, enter your email, click the link in the mail.
 
-### 5. Deploy (Vercel)
+### 5. Deploy (Hostinger Node.js hosting)
 
-1. Import the repo in Vercel. Framework preset: Next.js. No build overrides needed.
-2. Add the same four environment variables (use the pooler `DATABASE_URL`).
-3. Add your Vercel URL to the Supabase redirect list from step 1.4.
-4. Deploy. Migrations are not run by Vercel; run `npm run db:migrate` locally against the same `DATABASE_URL` whenever `drizzle/` changes.
+The live instance runs on Hostinger, recorded in `.hostinger/site.json`. It is a Node.js website with `app_type: next`, Node 24, build script `build`; the platform runs `npm install`, `npm run build` and `npm start` (which honours `PORT`).
 
-Hostinger's Node.js hosting works too: it just needs the same env vars and `npm run build` / `npm start`.
+1. Set all five environment variables in hPanel → Websites → the site → Node.js → **Environment variables**: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `DATABASE_URL` (Transaction pooler string), `ALLOWED_EMAIL`, `NEXT_PUBLIC_SITE_URL` (the site's https origin, used for magic-link redirects). Saving is a full replace, so always send the complete set.
+2. **Rebuild after changing any `NEXT_PUBLIC_*` variable.** They are compiled into the bundle; a restart alone keeps the old values.
+3. Add `https://<domain>/auth/callback` to Supabase → Authentication → URL Configuration → Redirect URLs, and set Site URL to the domain.
+4. Deploy a new version by uploading a source-only archive (no `node_modules`, `.next`, or `.env*`):
+
+```bash
+git archive --format=zip -o /tmp/workhub_$(date +%Y%m%d_%H%M%S).zip HEAD
+```
+
+then hand that file to the Hostinger deploy tool (or hPanel's Node.js upload). Build status and logs are under Node.js → Deployments. Migrations are never run by the platform; run `npm run db:migrate` locally against the same `DATABASE_URL` whenever `drizzle/` changes.
+
+Vercel works too with the first three variables plus `ALLOWED_EMAIL`; no config changes needed.
 
 ## Backups
 
