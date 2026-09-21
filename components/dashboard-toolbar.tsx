@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { GROUPINGS, SORTS, SORT_LABEL, type Grouping, type Sort } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Props = { grouping: Grouping; sort: Sort; area?: string; archived: boolean; areas: string[] };
 
@@ -47,9 +47,9 @@ export function DashboardToolbar({ grouping, sort, area, archived, areas }: Prop
         <Select value={sort} onValueChange={(v) => router.push(withParams({ sort: v === "activity" ? null : v }))}>
           <SelectTrigger size="sm" aria-label="Sort by" className="w-[150px] bg-card">
             <span className="text-muted-foreground">Sort:</span>
-            <span className="truncate">{SORT_LABEL[sort]}</span>
+            <SelectValue>{SORT_LABEL[sort]}</SelectValue>
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent position="popper">
             {SORTS.map((s) => (
               <SelectItem key={s} value={s}>
                 {SORT_LABEL[s]}
