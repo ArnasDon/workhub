@@ -1,6 +1,8 @@
-import { and, asc, count, desc, eq, gte, ilike, max, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, max, ne, notInArray, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
-import { initiatives, logEntries, type Initiative, type LogEntry } from "@/db/schema";
+import { initiativeRelations, initiatives, logEntries, type Initiative, type LogEntry, type RelationKind } from "@/db/schema";
+import { rootCause } from "@/lib/db-error";
 import type { Sort } from "@/lib/constants";
 import { PRIORITY_RANK } from "@/lib/constants";
 
@@ -9,6 +11,8 @@ export type InitiativeWithActivity = Initiative & {
   lastActivityAt: Date;
   entryCount: number;
   latestEntry: { body: string; createdAt: Date } | null;
+  /** Number of blockers (blocked_by targets) that are not yet done/archived. */
+  openBlockers: number;
 };
 
 export type ListOptions = {
@@ -55,6 +59,7 @@ export async function listInitiatives(opts: ListOptions = {}): Promise<Initiativ
     .from(logEntries)
     .orderBy(logEntries.initiativeId, desc(logEntries.createdAt));
   const latestById = new Map(latest.map((l) => [l.initiativeId, l]));
+  const blockers = await openBlockerCounts();
 
   const result: InitiativeWithActivity[] = rows.map((r) => {
     const lastEntryAt = r.lastEntryAt ? new Date(r.lastEntryAt) : null;
@@ -66,10 +71,78 @@ export async function listInitiatives(opts: ListOptions = {}): Promise<Initiativ
       lastActivityAt,
       entryCount: Number(r.entryCount ?? 0),
       latestEntry: le ? { body: le.body, createdAt: le.createdAt } : null,
+      openBlockers: blockers.get(r.initiative.id) ?? 0,
     };
   });
 
   return sortInitiatives(result, opts.sort ?? "activity");
+}
+
+/** Tolerate the relations table not existing yet (migration 0002 not applied): behave as "no relations". */
+async function tolerateMissingRelations<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (rootCause(err).code === "42P01") {
+      console.warn("[workhub] initiative_relations table is missing; apply drizzle/0002_initiative_relations.sql");
+      return fallback;
+    }
+    throw err;
+  }
+}
+
+async function openBlockerCounts(): Promise<Map<string, number>> {
+  const db = getDb();
+  return tolerateMissingRelations(async () => {
+    const blocker = alias(initiatives, "blocker");
+    const rows = await db
+      .select({ fromId: initiativeRelations.fromId, n: count() })
+      .from(initiativeRelations)
+      .innerJoin(blocker, eq(blocker.id, initiativeRelations.toId))
+      .where(and(eq(initiativeRelations.kind, "blocked_by"), notInArray(blocker.status, ["done", "archived"])))
+      .groupBy(initiativeRelations.fromId);
+    return new Map(rows.map((r) => [r.fromId, Number(r.n)]));
+  }, new Map());
+}
+
+// ── Relations ────────────────────────────────────────────────────────────────
+
+export type RelationView = {
+  id: string;
+  kind: RelationKind;
+  /** How this relation reads from the current initiative's point of view. */
+  direction: "blocked_by" | "blocks" | "related";
+  other: Pick<Initiative, "id" | "title" | "status" | "area">;
+};
+
+/** All relations touching `id`, phrased from its point of view. */
+export async function listRelations(id: string): Promise<RelationView[]> {
+  const db = getDb();
+  return tolerateMissingRelations(async () => {
+    const other = alias(initiatives, "other");
+    const outgoing = await db
+      .select({ id: initiativeRelations.id, kind: initiativeRelations.kind, otherId: other.id, title: other.title, status: other.status, area: other.area })
+      .from(initiativeRelations)
+      .innerJoin(other, eq(other.id, initiativeRelations.toId))
+      .where(eq(initiativeRelations.fromId, id));
+    const incoming = await db
+      .select({ id: initiativeRelations.id, kind: initiativeRelations.kind, otherId: other.id, title: other.title, status: other.status, area: other.area })
+      .from(initiativeRelations)
+      .innerJoin(other, eq(other.id, initiativeRelations.fromId))
+      .where(eq(initiativeRelations.toId, id));
+    const view = (r: (typeof outgoing)[number], direction: RelationView["direction"]): RelationView => ({
+      id: r.id,
+      kind: r.kind,
+      direction,
+      other: { id: r.otherId, title: r.title, status: r.status, area: r.area },
+    });
+    const all = [
+      ...outgoing.map((r) => view(r, r.kind === "blocked_by" ? "blocked_by" : "related")),
+      ...incoming.map((r) => view(r, r.kind === "blocked_by" ? "blocks" : "related")),
+    ];
+    const order: Record<RelationView["direction"], number> = { blocked_by: 0, blocks: 1, related: 2 };
+    return all.sort((a, b) => order[a.direction] - order[b.direction] || a.other.title.localeCompare(b.other.title));
+  }, []);
 }
 
 export function sortInitiatives<T extends InitiativeWithActivity>(items: T[], sort: Sort): T[] {

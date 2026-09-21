@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm";
 import {
   boolean,
+  check,
   date,
   index,
   jsonb,
@@ -8,8 +9,10 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const STATUSES = [
   "idea",
@@ -69,8 +72,47 @@ export const logEntries = pgTable(
   (t) => [index("log_entries_initiative_created_idx").on(t.initiativeId, t.createdAt)],
 );
 
+export const RELATION_KINDS = ["blocked_by", "related"] as const;
+export type RelationKind = (typeof RELATION_KINDS)[number];
+export const relationKindEnum = pgEnum("relation_kind", RELATION_KINDS);
+
+/**
+ * Directed link between two initiatives. `blocked_by` reads "from is blocked
+ * by to" (and, from the other side, "to blocks from"); `related` is symmetric.
+ */
+export const initiativeRelations = pgTable(
+  "initiative_relations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    fromId: uuid("from_id")
+      .notNull()
+      .references(() => initiatives.id, { onDelete: "cascade" }),
+    toId: uuid("to_id")
+      .notNull()
+      .references(() => initiatives.id, { onDelete: "cascade" }),
+    kind: relationKindEnum("kind").notNull().default("blocked_by"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("initiative_relations_unique_idx").on(t.fromId, t.toId, t.kind),
+    index("initiative_relations_to_idx").on(t.toId),
+    check("initiative_relations_no_self", sql`${t.fromId} <> ${t.toId}`),
+  ],
+);
+
+export type InitiativeRelation = typeof initiativeRelations.$inferSelect;
+
 export const initiativesRelations = relations(initiatives, ({ many }) => ({
   entries: many(logEntries),
+  outgoing: many(initiativeRelations, { relationName: "from" }),
+  incoming: many(initiativeRelations, { relationName: "to" }),
+}));
+
+export const initiativeRelationsRelations = relations(initiativeRelations, ({ one }) => ({
+  from: one(initiatives, { fields: [initiativeRelations.fromId], references: [initiatives.id], relationName: "from" }),
+  to: one(initiatives, { fields: [initiativeRelations.toId], references: [initiatives.id], relationName: "to" }),
 }));
 
 export const logEntriesRelations = relations(logEntries, ({ one }) => ({
