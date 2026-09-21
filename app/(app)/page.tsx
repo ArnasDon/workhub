@@ -7,7 +7,7 @@ import { InitiativeCard } from "@/components/initiative-card";
 import { DashboardToolbar } from "@/components/dashboard-toolbar";
 import { EmptyState } from "@/components/empty-state";
 import { StatusBadge } from "@/components/status-badge";
-import { Linkified } from "@/components/linkified";
+import { plainText } from "@/lib/plain-text";
 import { Button } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
@@ -168,7 +168,7 @@ async function SearchResults({ q, now }: { q: string; now: Date }) {
                   <StatusBadge status={e.initiativeStatus} className="h-5 px-1.5 text-[11px]" />
                   <span>{relativeDays(e.createdAt, now)}</span>
                 </div>
-                <Linkified text={e.body} className="line-clamp-4 whitespace-pre-wrap break-words text-sm" />
+                <p className="line-clamp-4 break-words text-sm">{plainText(e.body, 600)}</p>
               </li>
             ))}
           </ol>

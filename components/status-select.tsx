@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { setStatus } from "@/lib/actions";
 import { STATUSES, STATUS_LABEL, STATUS_STYLE, type Status } from "@/lib/constants";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 
 /** Inline status control used in list rows and the detail header. Logs the transition. */
 export function StatusSelect({
@@ -43,7 +43,9 @@ export function StatusSelect({
         aria-label="Status"
         className={cn("h-7 gap-1.5 border-transparent bg-transparent pl-2 pr-1.5 shadow-none", STATUS_STYLE[value].badge, className)}
       >
-        <SelectValue />
+        {/* Rendered by us, not SelectValue: Radix only fills SelectValue after hydration, which flashes empty on slow servers. */}
+        <span className={cn("size-1.5 shrink-0 rounded-full", STATUS_STYLE[value].dot)} aria-hidden />
+        <span className="truncate">{STATUS_LABEL[value]}</span>
       </SelectTrigger>
       <SelectContent align="end">
         {STATUSES.map((s) => (

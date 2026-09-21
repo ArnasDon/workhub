@@ -8,6 +8,7 @@ import { StatusSelect } from "@/components/status-select";
 import { PinButton } from "@/components/pin-button";
 import { LogUpdateButton } from "@/components/log-update-button";
 import { Badge } from "@/components/ui/badge";
+import { plainText } from "@/lib/plain-text";
 
 export function InitiativeCard({ item, now }: { item: InitiativeWithActivity; now: Date }) {
   const stale = item.status !== "done" && item.status !== "archived" && isStale(item.lastActivityAt, now);
@@ -36,7 +37,7 @@ export function InitiativeCard({ item, now }: { item: InitiativeWithActivity; no
       </div>
 
       {item.latestEntry ? (
-        <p className="line-clamp-3 text-sm text-muted-foreground">{item.latestEntry.body}</p>
+        <p className="line-clamp-3 text-sm text-muted-foreground">{plainText(item.latestEntry.body)}</p>
       ) : (
         <p className="text-sm italic text-muted-foreground/70">No updates yet.</p>
       )}

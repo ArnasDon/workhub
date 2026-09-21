@@ -43,13 +43,13 @@ export function LogEntryForm({ initiativeId }: { initiativeId: string }) {
             submit();
           }
         }}
-        placeholder="Add an update: what happened, what you decided, what's next…"
+        placeholder="Add an update: what happened, what you decided, what's next… (Markdown ok)"
         aria-label="New log entry"
         rows={3}
         className="min-h-20 resize-y border-0 bg-transparent p-1 shadow-none focus-visible:ring-0"
       />
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-muted-foreground">Entries are append-only. Plain text; links become clickable.</p>
+        <p className="text-xs text-muted-foreground">Append-only. Markdown works: <code className="rounded bg-muted px-1">**bold**</code>, <code className="rounded bg-muted px-1">- list</code>, <code className="rounded bg-muted px-1">`code`</code>, links.</p>
         <Button type="submit" size="sm" disabled={pending || !body.trim()}>
           {pending ? "Saving…" : "Add entry"}
           <CornerDownLeft data-icon="inline-end" aria-hidden className="opacity-70" />

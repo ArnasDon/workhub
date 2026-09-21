@@ -40,7 +40,7 @@ Several initiatives run at once (product OKRs, integrations, distribution/listin
 **High value, low effort**
 - Kanban board view — ✅ shipped (`/board`, dnd-kit).
 - Stale nudges (7+ days) — ✅ shipped early, trivial.
-- Markdown support in log entries.
+- Markdown support in log entries — ✅ shipped (react-markdown + remark-gfm, prose theme tokens).
 - CSV / JSON / Markdown export — ✅ JSON + Markdown shipped.
 - Command palette (⌘K) — ✅ shipped as the quick-capture surface.
 - Pin/star initiatives — ✅ shipped (schema already had the column).
@@ -94,7 +94,7 @@ Several initiatives run at once (product OKRs, integrations, distribution/listin
 - **Phase 0 — Setup** ✅ scaffold, shadcn, warm tokens, Drizzle schema + migrations, Supabase Auth wiring, CI.
 - **Phase 1 — Core loop** ✅ initiative CRUD, log model, dashboard, detail page, status control everywhere.
 - **Phase 2 — Usability** ✅ quick capture, search, tags/areas filter, theme, responsive, JSON export.
-- **Phase 3 — Nice-to-haves** ◐ stale flag, ⌘K, pin, Kanban shipped; Markdown rendering pending.
+- **Phase 3 — Nice-to-haves** ✅ stale flag, ⌘K, pin, Kanban, Markdown rendering.
 - **Phase 4 — AI layer** ☐ summarize-into-entry, weekly digest.
 - **Phase 5 — Hardening** ☐ verify export/restore, auth edge cases, custom domain.
 

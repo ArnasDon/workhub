@@ -8,7 +8,7 @@ Single-user. Next.js 16 (App Router) · TypeScript · Tailwind 4 · shadcn/ui (R
 
 - Initiatives: title, area/tag, status, priority, target date, links, pin.
 - Status flow `Idea → In progress → Blocked → Waiting on someone → Done → Archived`, changeable inline from the dashboard card or the detail page. Every change is written to the log.
-- Append-only log per initiative, grouped by day, links clickable.
+- Append-only log per initiative, grouped by day. Entries are GitHub-flavoured Markdown: lists, bold, code, tables, task lists; bare URLs become links. Raw HTML is never rendered.
 - Dashboard grouped by status or area, sortable, area filter chips, "updated Xd ago", stale flag after 7 days, pinned items first.
 - **Board view** (`/board`): one column per status, drag cards between columns (mouse, touch, or keyboard), or use the card menu's "Move to". Every move is written to the log.
 - Quick capture: `⌘K` → pick an initiative → type → `⌘Enter`. Every card also has a "Log update" button that opens the same dialog pre-targeted.
@@ -120,4 +120,4 @@ proxy.ts                 Next 16 request proxy (formerly middleware)
 
 ## Roadmap
 
-See the phased plan in `docs/requirements.md`. Next up: Markdown rendering in entries, weekly digest, and the Claude-assisted "summarise this into a log entry" button.
+See the phased plan in `docs/requirements.md`. Next up: weekly digest, and the Claude-assisted "summarise this into a log entry" button.
