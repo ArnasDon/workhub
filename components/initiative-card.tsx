@@ -9,6 +9,7 @@ import { PinButton } from "@/components/pin-button";
 import { LogUpdateButton } from "@/components/log-update-button";
 import { Badge } from "@/components/ui/badge";
 import { plainText } from "@/lib/plain-text";
+import { TaskProgress } from "@/components/task-progress";
 
 export function InitiativeCard({ item, now }: { item: InitiativeWithActivity; now: Date }) {
   const stale = item.status !== "done" && item.status !== "archived" && isStale(item.lastActivityAt, now);
@@ -41,6 +42,8 @@ export function InitiativeCard({ item, now }: { item: InitiativeWithActivity; no
       ) : (
         <p className="text-sm italic text-muted-foreground/70">No updates yet.</p>
       )}
+
+      {item.taskTotal > 0 && <TaskProgress done={item.taskDone} total={item.taskTotal} />}
 
       <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
         {item.area && (

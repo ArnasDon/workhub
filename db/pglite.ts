@@ -52,6 +52,14 @@ async function seedIfEmpty(db: ReturnType<typeof drizzle<typeof schema>>) {
     { fromId: id("Node.js"), toId: id("Publish"), kind: "blocked_by" },
     { fromId: id("Weekly"), toId: id("Node.js"), kind: "related" },
   ]);
+  await db.insert(schema.tasks).values([
+    { initiativeId: id("Node.js"), title: "Finalise gallery copy with marketing", position: 0, done: true, doneAt: ago(2) },
+    { initiativeId: id("Node.js"), title: "Ship behind feature flag", position: 1, done: true, doneAt: ago(1) },
+    { initiativeId: id("Node.js"), title: "Enable for 10% of users", position: 2 },
+    { initiativeId: id("Node.js"), title: "Review first week of metrics", position: 3 },
+    { initiativeId: id("Publish"), title: "Fix manifest schema", position: 0 },
+    { initiativeId: id("Publish"), title: "Resubmit to registry", position: 1 },
+  ]);
   console.log("[workhub] seeded sample initiatives");
 }
 
