@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { CalendarRange, Columns3, List } from "lucide-react";
+import { CalendarDays, CalendarRange, Columns3, List } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -15,6 +15,7 @@ export function ViewSwitch() {
   const items = [
     { href: `/${qs}`, label: "List", icon: List, active: pathname === "/" },
     { href: `/board${qs}`, label: "Board", icon: Columns3, active: pathname === "/board" },
+    { href: "/timeline", label: "Timeline", icon: CalendarDays, active: pathname === "/timeline" },
     { href: "/digest", label: "Digest", icon: CalendarRange, active: pathname === "/digest" },
   ];
   return (
