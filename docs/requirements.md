@@ -41,7 +41,7 @@ Several initiatives run at once (product OKRs, integrations, distribution/listin
 - Kanban board view — ✅ shipped (`/board`, dnd-kit).
 - Stale nudges (7+ days) — ✅ shipped early, trivial.
 - Markdown support in log entries — ✅ shipped (react-markdown + remark-gfm, prose theme tokens).
-- CSV / JSON / Markdown export — ✅ JSON + Markdown shipped.
+- CSV / JSON / Markdown export — ✅ all three shipped.
 - Command palette (⌘K) — ✅ shipped as the quick-capture surface.
 - Pin/star initiatives — ✅ shipped (schema already had the column).
 

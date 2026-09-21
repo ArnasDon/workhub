@@ -28,6 +28,13 @@ export function ExportMenu() {
         <DropdownMenuItem asChild>
           <a href="/api/export?format=md" download>Markdown (readable)</a>
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <a href="/api/export?format=csv" download>CSV · log entries</a>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <a href="/api/export?format=csv&table=initiatives" download>CSV · initiatives</a>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

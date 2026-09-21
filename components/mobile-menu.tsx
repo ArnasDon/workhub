@@ -63,6 +63,12 @@ export function MobileMenu() {
             Markdown
           </a>
         </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <a href="/api/export?format=csv" download>
+            <Download aria-hidden />
+            CSV (log entries)
+          </a>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>
           <Sun className="hidden dark:block" aria-hidden />

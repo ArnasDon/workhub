@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { FolderKanban, Plus, SearchX } from "lucide-react";
 import { STATUSES, STATUS_LABEL, GROUPINGS, SORTS, type Grouping, type Sort } from "@/lib/constants";
-import { listAreas, listInitiatives, search, type InitiativeWithActivity } from "@/lib/queries";
+import { getStreak, listAreas, listInitiatives, search, type InitiativeWithActivity } from "@/lib/queries";
 import { relativeDays } from "@/lib/format";
 import { InitiativeCard } from "@/components/initiative-card";
 import { DashboardToolbar } from "@/components/dashboard-toolbar";
@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/empty-state";
 import { StatusBadge } from "@/components/status-badge";
 import { plainText } from "@/lib/plain-text";
 import { Button } from "@/components/ui/button";
+import { StreakChip } from "@/components/streak-chip";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
 
   if (q) return <SearchResults q={q} now={now} />;
 
-  const [items, areas] = await Promise.all([listInitiatives({ includeArchived: archived, area, sort }), listAreas()]);
+  const [items, areas, streak] = await Promise.all([listInitiatives({ includeArchived: archived, area, sort }), listAreas(), getStreak(now)]);
 
   if (items.length === 0 && !area && !archived) {
     return (
@@ -59,6 +60,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
             {area && <> in <span className="font-medium text-foreground">{area}</span></>}
           </p>
         </div>
+        <StreakChip streak={streak} now={now} />
       </div>
 
       <DashboardToolbar grouping={grouping} sort={sort} area={area} archived={archived} areas={areas} />
