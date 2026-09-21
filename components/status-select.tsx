@@ -43,7 +43,6 @@ export function StatusSelect({
         aria-label="Status"
         className={cn("h-7 gap-1.5 border-transparent bg-transparent pl-2 pr-1.5 shadow-none", STATUS_STYLE[value].badge, className)}
       >
-        <span className={cn("size-1.5 shrink-0 rounded-full", STATUS_STYLE[value].dot)} aria-hidden />
         <SelectValue />
       </SelectTrigger>
       <SelectContent align="end">

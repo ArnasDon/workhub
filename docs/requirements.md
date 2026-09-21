@@ -38,7 +38,7 @@ Several initiatives run at once (product OKRs, integrations, distribution/listin
 ## 4. Nice-to-Have (v2+)
 
 **High value, low effort**
-- Kanban board view.
+- Kanban board view — ✅ shipped (`/board`, dnd-kit).
 - Stale nudges (7+ days) — ✅ shipped early, trivial.
 - Markdown support in log entries.
 - CSV / JSON / Markdown export — ✅ JSON + Markdown shipped.
@@ -94,7 +94,7 @@ Several initiatives run at once (product OKRs, integrations, distribution/listin
 - **Phase 0 — Setup** ✅ scaffold, shadcn, warm tokens, Drizzle schema + migrations, Supabase Auth wiring, CI.
 - **Phase 1 — Core loop** ✅ initiative CRUD, log model, dashboard, detail page, status control everywhere.
 - **Phase 2 — Usability** ✅ quick capture, search, tags/areas filter, theme, responsive, JSON export.
-- **Phase 3 — Nice-to-haves** ◐ stale flag, ⌘K, pin shipped; Kanban and Markdown rendering pending.
+- **Phase 3 — Nice-to-haves** ◐ stale flag, ⌘K, pin, Kanban shipped; Markdown rendering pending.
 - **Phase 4 — AI layer** ☐ summarize-into-entry, weekly digest.
 - **Phase 5 — Hardening** ☐ verify export/restore, auth edge cases, custom domain.
 
