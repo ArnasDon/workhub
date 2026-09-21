@@ -58,6 +58,8 @@ Several initiatives run at once (product OKRs, integrations, distribution/listin
 - Auto-drafted weekly summary text.
 - Related-initiative detection on create.
 
+- To-do checklist per initiative with progress bar on cards — ✅ shipped 2026-09-21 (owner request, not in the original doc).
+
 **Out of scope unless asked:** notifications/email digests, Slack/Jira API integrations, multi-user sharing.
 
 ## 5. Data & Persistence
@@ -119,6 +121,12 @@ log_entries
 - initiative_id (fk → initiatives.id, cascade)
 - body (text)
 - created_at (timestamptz)
+
+tasks                           -- added 2026-09-21 (migration 0003), owner request
+- id (uuid, pk)
+- initiative_id (fk → initiatives.id, cascade)
+- title (text), done (bool), done_at (timestamptz, nullable)
+- position (int), created_at, updated_at
 
 initiative_relations            -- added 2026-09-21 (migration 0002)
 - id (uuid, pk)

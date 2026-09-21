@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, gte, ilike, max, ne, notInArray, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
-import { initiativeRelations, initiatives, logEntries, type Initiative, type LogEntry, type RelationKind } from "@/db/schema";
+import { initiativeRelations, initiatives, logEntries, tasks, type Initiative, type LogEntry, type RelationKind, type Task } from "@/db/schema";
 import { rootCause } from "@/lib/db-error";
 import type { Sort } from "@/lib/constants";
 import { PRIORITY_RANK } from "@/lib/constants";
@@ -13,6 +13,9 @@ export type InitiativeWithActivity = Initiative & {
   latestEntry: { body: string; createdAt: Date } | null;
   /** Number of blockers (blocked_by targets) that are not yet done/archived. */
   openBlockers: number;
+  /** Checklist progress. */
+  taskTotal: number;
+  taskDone: number;
 };
 
 export type ListOptions = {
@@ -59,7 +62,7 @@ export async function listInitiatives(opts: ListOptions = {}): Promise<Initiativ
     .from(logEntries)
     .orderBy(logEntries.initiativeId, desc(logEntries.createdAt));
   const latestById = new Map(latest.map((l) => [l.initiativeId, l]));
-  const blockers = await openBlockerCounts();
+  const [blockers, progress] = await Promise.all([openBlockerCounts(), taskProgress()]);
 
   const result: InitiativeWithActivity[] = rows.map((r) => {
     const lastEntryAt = r.lastEntryAt ? new Date(r.lastEntryAt) : null;
@@ -72,23 +75,58 @@ export async function listInitiatives(opts: ListOptions = {}): Promise<Initiativ
       entryCount: Number(r.entryCount ?? 0),
       latestEntry: le ? { body: le.body, createdAt: le.createdAt } : null,
       openBlockers: blockers.get(r.initiative.id) ?? 0,
+      taskTotal: progress.get(r.initiative.id)?.total ?? 0,
+      taskDone: progress.get(r.initiative.id)?.done ?? 0,
     };
   });
 
   return sortInitiatives(result, opts.sort ?? "activity");
 }
 
-/** Tolerate the relations table not existing yet (migration 0002 not applied): behave as "no relations". */
-async function tolerateMissingRelations<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+/** Tolerate a table that a not-yet-applied migration creates: behave as if it were empty. */
+async function tolerateMissingTable<T>(migration: string, fn: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await fn();
   } catch (err) {
     if (rootCause(err).code === "42P01") {
-      console.warn("[workhub] initiative_relations table is missing; apply drizzle/0002_initiative_relations.sql");
+      console.warn(`[workhub] a table is missing; apply drizzle/${migration}`);
       return fallback;
     }
     throw err;
   }
+}
+const tolerateMissingRelations = <T,>(fn: () => Promise<T>, fallback: T) =>
+  tolerateMissingTable("0002_initiative_relations.sql", fn, fallback);
+const tolerateMissingTasks = <T,>(fn: () => Promise<T>, fallback: T) => tolerateMissingTable("0003_tasks.sql", fn, fallback);
+
+async function taskProgress(): Promise<Map<string, { total: number; done: number }>> {
+  const db = getDb();
+  return tolerateMissingTasks(async () => {
+    const rows = await db
+      .select({
+        initiativeId: tasks.initiativeId,
+        total: count(),
+        done: sql<number>`count(*) filter (where ${tasks.done})`,
+      })
+      .from(tasks)
+      .groupBy(tasks.initiativeId);
+    return new Map(rows.map((r) => [r.initiativeId, { total: Number(r.total), done: Number(r.done) }]));
+  }, new Map());
+}
+
+// ── Tasks ────────────────────────────────────────────────────────────────────
+
+/** Open tasks in position order, then completed ones most recent first. */
+export async function listTasks(initiativeId: string): Promise<Task[]> {
+  const db = getDb();
+  return tolerateMissingTasks(async () => {
+    const rows = await db.select().from(tasks).where(eq(tasks.initiativeId, initiativeId));
+    return rows.sort((a, b) => {
+      if (a.done !== b.done) return a.done ? 1 : -1;
+      if (a.done) return (b.doneAt?.getTime() ?? 0) - (a.doneAt?.getTime() ?? 0);
+      return a.position - b.position || a.createdAt.getTime() - b.createdAt.getTime();
+    });
+  }, []);
 }
 
 async function openBlockerCounts(): Promise<Map<string, number>> {

@@ -4,6 +4,7 @@ import {
   check,
   date,
   index,
+  integer,
   jsonb,
   pgEnum,
   pgTable,
@@ -104,8 +105,33 @@ export const initiativeRelations = pgTable(
 
 export type InitiativeRelation = typeof initiativeRelations.$inferSelect;
 
+/** Checklist items on an initiative. Small, editable, and summarised as a progress bar. */
+export const tasks = pgTable(
+  "tasks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    initiativeId: uuid("initiative_id")
+      .notNull()
+      .references(() => initiatives.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    done: boolean("done").notNull().default(false),
+    doneAt: timestamp("done_at", { withTimezone: true, mode: "date" }),
+    position: integer("position").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("tasks_initiative_position_idx").on(t.initiativeId, t.position)],
+);
+
+export type Task = typeof tasks.$inferSelect;
+
 export const initiativesRelations = relations(initiatives, ({ many }) => ({
   entries: many(logEntries),
+  tasks: many(tasks),
   outgoing: many(initiativeRelations, { relationName: "from" }),
   incoming: many(initiativeRelations, { relationName: "to" }),
 }));
@@ -125,3 +151,7 @@ export const logEntriesRelations = relations(logEntries, ({ one }) => ({
 export type Initiative = typeof initiatives.$inferSelect;
 export type NewInitiative = typeof initiatives.$inferInsert;
 export type LogEntry = typeof logEntries.$inferSelect;
+
+export const tasksRelations = relations(tasks, ({ one }) => ({
+  initiative: one(initiatives, { fields: [tasks.initiativeId], references: [initiatives.id] }),
+}));

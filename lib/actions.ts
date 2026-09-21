@@ -1,12 +1,12 @@
 "use server";
 
-import { eq, sql } from "drizzle-orm";
+import { eq, max, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { getDb } from "@/db";
-import { initiativeRelations, initiatives, logEntries, PRIORITIES, RELATION_KINDS, STATUSES, type Link } from "@/db/schema";
+import { initiativeRelations, initiatives, logEntries, tasks, PRIORITIES, RELATION_KINDS, STATUSES, type Link } from "@/db/schema";
 import { STATUS_LABEL } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -219,6 +219,75 @@ export async function removeRelation(id: string): Promise<ActionState> {
   revalidatePath("/");
   revalidatePath(`/initiatives/${rel.fromId}`);
   revalidatePath(`/initiatives/${rel.toId}`);
+  return { ok: true };
+}
+
+// ── Tasks ───────────────────────────────────────────────────────────────────
+
+const taskTitle = z.string().trim().min(1, "Write the to-do first").max(300);
+
+export async function addTask(input: { initiativeId: string; title: string }): Promise<ActionState & { id?: string }> {
+  await requireUser();
+  const parsed = z.object({ initiativeId: z.string().uuid(), title: taskTitle }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid to-do" };
+  const db = getDb();
+  const [{ next }] = await db
+    .select({ next: sql<number>`coalesce(${max(tasks.position)}, -1) + 1` })
+    .from(tasks)
+    .where(eq(tasks.initiativeId, parsed.data.initiativeId));
+  const [row] = await db
+    .insert(tasks)
+    .values({ initiativeId: parsed.data.initiativeId, title: parsed.data.title, position: Number(next) })
+    .returning({ id: tasks.id });
+  revalidatePath("/");
+  revalidatePath(`/initiatives/${parsed.data.initiativeId}`);
+  return { ok: true, id: row.id };
+}
+
+export async function updateTask(input: { id: string; title: string }): Promise<ActionState> {
+  await requireUser();
+  const parsed = z.object({ id: z.string().uuid(), title: taskTitle }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid to-do" };
+  const db = getDb();
+  const [row] = await db
+    .update(tasks)
+    .set({ title: parsed.data.title, updatedAt: new Date() })
+    .where(eq(tasks.id, parsed.data.id))
+    .returning({ initiativeId: tasks.initiativeId });
+  if (!row) return { ok: false, error: "To-do not found" };
+  revalidatePath(`/initiatives/${row.initiativeId}`);
+  return { ok: true };
+}
+
+/** Check or uncheck. Completing a to-do is logged; unchecking is not. */
+export async function toggleTask(input: { id: string; done: boolean }): Promise<ActionState> {
+  await requireUser();
+  const parsed = z.object({ id: z.string().uuid(), done: z.boolean() }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Invalid to-do" };
+  const db = getDb();
+  const [row] = await db
+    .update(tasks)
+    .set({ done: parsed.data.done, doneAt: parsed.data.done ? new Date() : null, updatedAt: new Date() })
+    .where(eq(tasks.id, parsed.data.id))
+    .returning({ initiativeId: tasks.initiativeId, title: tasks.title });
+  if (!row) return { ok: false, error: "To-do not found" };
+  if (parsed.data.done) {
+    await db.insert(logEntries).values({ initiativeId: row.initiativeId, body: `Done: ${row.title}` });
+    await db.update(initiatives).set({ updatedAt: new Date() }).where(eq(initiatives.id, row.initiativeId));
+  }
+  revalidatePath("/");
+  revalidatePath(`/initiatives/${row.initiativeId}`);
+  return { ok: true };
+}
+
+export async function deleteTask(id: string): Promise<ActionState> {
+  await requireUser();
+  if (!z.string().uuid().safeParse(id).success) return { ok: false, error: "Invalid to-do" };
+  const db = getDb();
+  const [row] = await db.delete(tasks).where(eq(tasks.id, id)).returning({ initiativeId: tasks.initiativeId });
+  if (!row) return { ok: false, error: "To-do not found" };
+  revalidatePath("/");
+  revalidatePath(`/initiatives/${row.initiativeId}`);
   return { ok: true };
 }
 

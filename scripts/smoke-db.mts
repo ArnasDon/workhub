@@ -154,6 +154,24 @@ console.log("✓ search");
   console.log("✓ toCsv");
 }
 
+// Tasks: ordering, progress aggregate, cascade.
+{
+  const { tasks } = schema;
+  await db.insert(tasks).values([
+    { initiativeId: a.id, title: "first", position: 0 },
+    { initiativeId: a.id, title: "second", position: 1, done: true, doneAt: new Date("2026-09-20T10:00:00Z") },
+    { initiativeId: a.id, title: "third", position: 2, done: true, doneAt: new Date("2026-09-21T10:00:00Z") },
+  ]);
+  const list = await q.listTasks(a.id);
+  assert.deepEqual(list.map((t) => t.title), ["first", "third", "second"], "open first, then completed newest first");
+  const withTasks = await q.listInitiatives();
+  const row = withTasks.find((i) => i.id === a.id)!;
+  assert.equal(row.taskTotal, 3);
+  assert.equal(row.taskDone, 2);
+  assert.equal(withTasks.find((i) => i.id === b.id)?.taskTotal, 0);
+  console.log("✓ tasks");
+}
+
 // Detail + entries newest first.
 const entries = await q.listEntries(a.id);
 assert.equal(entries[0].body, "Delayed to Q4 due to eng capacity.");
@@ -173,6 +191,7 @@ console.log("✓ updated_at trigger");
 await db.delete(initiatives).where(eq(initiatives.id, a.id));
 assert.equal((await q.listEntries(a.id)).length, 0);
 assert.equal((await q.listRelations(b.id)).length, 0, "relations pointing at a deleted initiative are gone");
+assert.equal((await q.listTasks(a.id)).length, 0, "tasks of a deleted initiative are gone");
 console.log("✓ cascade delete");
 
 // Export shape.

@@ -25,6 +25,7 @@ import { PRIORITY_DOT, PRIORITY_LABEL, STATUS_LABEL, STATUS_STYLE, type Status }
 import type { InitiativeWithActivity } from "@/lib/queries";
 import { isStale, relativeDays } from "@/lib/format";
 import { plainText } from "@/lib/plain-text";
+import { TaskProgress } from "@/components/task-progress";
 import { openCapture } from "@/components/capture-events";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -225,6 +226,7 @@ function BoardCard({
       </div>
 
       {item.latestEntry && <p className="line-clamp-2 text-xs text-muted-foreground">{plainText(item.latestEntry.body, 200)}</p>}
+      {item.taskTotal > 0 && <TaskProgress done={item.taskDone} total={item.taskTotal} />}
 
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
         {item.area && <Badge variant="secondary" className="h-5 px-1.5 text-[11px] font-normal">{item.area}</Badge>}

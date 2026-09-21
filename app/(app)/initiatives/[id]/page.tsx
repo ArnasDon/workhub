@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { ArrowLeft, CalendarDays, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getInitiative, listAreas, listEntries, listInitiativeOptions, listRelations } from "@/lib/queries";
+import { getInitiative, listAreas, listEntries, listInitiativeOptions, listRelations, listTasks } from "@/lib/queries";
 import { PRIORITY_DOT, PRIORITY_LABEL } from "@/lib/constants";
 import { relativeDays, targetLabel } from "@/lib/format";
 import { StatusSelect } from "@/components/status-select";
@@ -14,6 +14,7 @@ import { DeleteInitiativeButton } from "@/components/delete-initiative-button";
 import { LogEntryForm } from "@/components/log-entry-form";
 import { LogTimeline } from "@/components/log-timeline";
 import { RelationsPanel } from "@/components/relations-panel";
+import { TaskList } from "@/components/task-list";
 import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
@@ -30,12 +31,13 @@ export async function generateMetadata({ params }: PageProps<"/initiatives/[id]"
 export default async function InitiativePage({ params }: PageProps<"/initiatives/[id]">) {
   const { id } = await params;
   if (!UUID.test(id)) notFound();
-  const [initiative, entries, areas, relations, options] = await Promise.all([
+  const [initiative, entries, areas, relations, options, taskRows] = await Promise.all([
     getInitiative(id),
     listEntries(id),
     listAreas(),
     listRelations(id),
     listInitiativeOptions(),
+    listTasks(id),
   ]);
   if (!initiative) notFound();
 
@@ -102,6 +104,8 @@ export default async function InitiativePage({ params }: PageProps<"/initiatives
           </ul>
         )}
       </div>
+
+      <TaskList initiativeId={initiative.id} tasks={taskRows} />
 
       <RelationsPanel initiativeId={initiative.id} relations={relations} options={options} />
 
