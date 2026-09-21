@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Command as CommandIcon, LogOut, Plus, Search, Sparkles } from "lucide-react";
+import { Command as CommandIcon, KeyRound, LogOut, Plus, Search, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ExportMenu } from "@/components/export-menu";
@@ -41,6 +41,16 @@ export function AppHeader({ query }: { query?: string }) {
           </Tooltip>
           <ExportMenu />
           <ThemeToggle />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button asChild variant="ghost" size="icon-sm">
+                <Link href="/account/password" aria-label="Change password">
+                  <KeyRound className="size-4" />
+                </Link>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Change password</TooltipContent>
+          </Tooltip>
           <form action="/auth/signout" method="post">
             <Tooltip>
               <TooltipTrigger asChild>

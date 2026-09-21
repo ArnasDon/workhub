@@ -9,3 +9,4 @@
 - Log entries are append-only by design. Do not add edit/delete for them without an explicit ask.
 - Dev server port is 4700. Build must pass with no `.env.local` (`getDb()` is lazy for that reason).
 - Checks before pushing: `npm run lint && npm run typecheck && npm run build`.
+- Auth is email + password (not magic link). Registration and sign-in both refuse any address not in `ALLOWED_EMAIL`; the proxy and `requireUser()` enforce the same check on every request.

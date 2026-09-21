@@ -14,7 +14,7 @@ Single-user. Next.js 16 (App Router) · TypeScript · Tailwind 4 · shadcn/ui (R
 - Full-text search over titles, areas, and log entries (`websearch` syntax: quotes, `-word`, `OR`).
 - Export everything as JSON (backup) or Markdown (readable) from the header.
 - Warm cream/terracotta theme, light and dark, responsive down to phone width.
-- Magic-link sign-in restricted to one email address.
+- Email + password sign-in restricted to one email address, with password reset. Sessions persist in cookies and are refreshed automatically, so you stay signed in across visits.
 
 ## Setup (about 15 minutes)
 
@@ -22,9 +22,9 @@ Single-user. Next.js 16 (App Router) · TypeScript · Tailwind 4 · shadcn/ui (R
 
 1. Create a project at [supabase.com](https://supabase.com) (free tier is fine).
 2. **Project Settings → API**: copy the Project URL and the `anon` public key.
-3. **Project Settings → Database → Connection string → URI**: copy it. For Vercel use the **Transaction pooler** (port `6543`). Locally the direct connection (`5432`) also works.
+3. Click **Connect** in the dashboard top bar → **Connection String** → Type **URI** → Method **Transaction pooler** (port `6543`). Replace `[YOUR-PASSWORD]` with the database password (reset it under Project Settings → Database if you don't have it). This is `DATABASE_URL`.
 4. **Authentication → URL Configuration**: set *Site URL* to your deployed URL (or `http://localhost:4700` for now) and add `http://localhost:4700/auth/callback` and `https://<your-domain>/auth/callback` to *Redirect URLs*.
-5. **Authentication → Providers → Email**: keep Email enabled. Magic links are on by default. Optionally turn off "Confirm email" since the app only ever admits one address anyway.
+5. **Authentication → Providers → Email**: keep Email enabled. Recommended: turn **off** "Confirm email" so creating your account signs you straight in (the app only ever admits `ALLOWED_EMAIL`, so confirmation adds nothing). If you leave it on, you'll get a confirmation mail after registering and must click it before signing in.
 
 ### 2. Local environment
 
@@ -49,13 +49,13 @@ This applies `drizzle/*.sql`: the two tables, enums, indexes, full-text indexes,
 npm run dev
 ```
 
-Open <http://localhost:4700>, enter your email, click the link in the mail.
+Open <http://localhost:4700>, switch to **Create account**, register with the `ALLOWED_EMAIL` address and a password (8+ characters). Afterwards use **Sign in**. "Forgot password?" emails a reset link that lands on `/account/password`, which is also where you change the password later (key icon in the header).
 
 ### 5. Deploy (Hostinger Node.js hosting)
 
 The live instance runs on Hostinger, recorded in `.hostinger/site.json`. It is a Node.js website with `app_type: next`, Node 24, build script `build`; the platform runs `npm install`, `npm run build` and `npm start` (which honours `PORT`).
 
-1. Set all five environment variables in hPanel → Websites → the site → Node.js → **Environment variables**: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `DATABASE_URL` (Transaction pooler string), `ALLOWED_EMAIL`, `NEXT_PUBLIC_SITE_URL` (the site's https origin, used for magic-link redirects). Saving is a full replace, so always send the complete set.
+1. Set all five environment variables in hPanel → Websites → the site → Node.js → **Environment variables**: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `DATABASE_URL` (Transaction pooler string), `ALLOWED_EMAIL`, `NEXT_PUBLIC_SITE_URL` (the site's https origin, used for confirmation and password-reset email links). Saving is a full replace, so always send the complete set.
 2. **Rebuild after changing any `NEXT_PUBLIC_*` variable.** They are compiled into the bundle; a restart alone keeps the old values.
 3. Add `https://<domain>/auth/callback` to Supabase → Authentication → URL Configuration → Redirect URLs, and set Site URL to the domain.
 4. Deploy a new version by uploading a source-only archive (no `node_modules`, `.next`, or `.env*`):
@@ -92,8 +92,9 @@ app/
     page.tsx             dashboard (grouping, sort, filters, search results)
     initiatives/new      create form
     initiatives/[id]     detail: metadata, status, log form, timeline
-  login/                 magic-link form
-  auth/callback          exchanges the link for a session
+  login/                 sign in / create account / reset password
+  account/password       set a new password (reset landing + change)
+  auth/callback          exchanges email links (confirm, reset) for a session
   auth/signout           POST → sign out
   api/export             GET ?format=json|md
 components/              app components; components/ui is shadcn (owned code)
