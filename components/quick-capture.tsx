@@ -136,7 +136,7 @@ export function QuickCapture({ initiatives }: { initiatives: InitiativeOption[] 
                 submit();
               }
             }}
-            placeholder="What happened? What did you decide? What's next?"
+            placeholder="What happened? What did you decide? What's next? (Markdown ok)"
             aria-label="Update"
             rows={5}
             className="min-h-28 resize-y bg-background text-sm"

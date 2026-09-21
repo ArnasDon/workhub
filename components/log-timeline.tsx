@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { NotebookPen } from "lucide-react";
 import type { LogEntry } from "@/db/schema";
 import { dayHeading } from "@/lib/format";
-import { Linkified } from "@/components/linkified";
+import { Markdown } from "@/components/markdown";
 
 export function LogTimeline({ entries }: { entries: LogEntry[] }) {
   if (entries.length === 0) {
@@ -37,7 +37,7 @@ export function LogTimeline({ entries }: { entries: LogEntry[] }) {
                 <time dateTime={e.createdAt.toISOString()} className="text-xs text-muted-foreground">
                   {format(e.createdAt, "HH:mm")}
                 </time>
-                <Linkified text={e.body} className="mt-0.5 whitespace-pre-wrap break-words text-sm" />
+                <Markdown text={e.body} className="mt-0.5 break-words" />
               </li>
             ))}
           </ol>
