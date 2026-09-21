@@ -59,6 +59,7 @@ Several initiatives run at once (product OKRs, integrations, distribution/listin
 - Related-initiative detection on create.
 
 - To-do checklist per initiative with progress bar on cards — ✅ shipped 2026-09-21 (owner request, not in the original doc).
+- Description per initiative with a Markdown toolbar editor — ✅ shipped 2026-09-21 (owner request).
 
 **Out of scope unless asked:** notifications/email digests, Slack/Jira API integrations, multi-user sharing.
 
@@ -108,6 +109,7 @@ Remaining human steps before first real use: create the Supabase project, fill `
 initiatives
 - id (uuid, pk)
 - title (text)
+- description (text, Markdown, default '')   -- added 2026-09-21 (migration 0004), owner request
 - area (text, default '')
 - status (enum initiative_status)
 - priority (enum initiative_priority: low/medium/high)

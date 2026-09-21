@@ -21,6 +21,7 @@ const linkSchema = z.object({
 
 const initiativeSchema = z.object({
   title: z.string().trim().min(1, "Give it a title").max(200),
+  description: z.string().trim().max(20000, "Keep the description under 20,000 characters").default(""),
   area: z.string().trim().max(60).default(""),
   status: z.enum(STATUSES),
   priority: z.enum(PRIORITIES),
@@ -56,6 +57,7 @@ function fieldErrors(err: z.ZodError): Record<string, string> {
 function readInitiativeForm(formData: FormData) {
   return initiativeSchema.safeParse({
     title: formData.get("title"),
+    description: formData.get("description") ?? "",
     area: formData.get("area") ?? "",
     status: formData.get("status") ?? "idea",
     priority: formData.get("priority") ?? "medium",

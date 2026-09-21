@@ -38,6 +38,8 @@ export const initiatives = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     title: text("title").notNull(),
+    /** Markdown. The "what and why" of the initiative; the log holds what happened. */
+    description: text("description").notNull().default(""),
     area: text("area").notNull().default(""),
     status: statusEnum("status").notNull().default("idea"),
     priority: priorityEnum("priority").notNull().default("medium"),

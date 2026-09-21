@@ -226,7 +226,9 @@ function BoardCard({
         </DropdownMenu>
       </div>
 
-      {item.latestEntry && <p className="line-clamp-2 text-xs text-muted-foreground">{plainText(item.latestEntry.body, 200)}</p>}
+      {(item.latestEntry || item.description.trim()) && (
+        <p className="line-clamp-2 text-xs text-muted-foreground">{plainText(item.latestEntry?.body ?? item.description, 200)}</p>
+      )}
       {item.taskTotal > 0 && <TaskProgress done={item.taskDone} total={item.taskTotal} />}
 
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
