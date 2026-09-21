@@ -244,16 +244,18 @@ export async function listInitiativeOptions() {
 export type SearchResult = {
   initiatives: InitiativeWithActivity[];
   entries: (LogEntry & { initiativeTitle: string; initiativeStatus: Initiative["status"] })[];
+  tasks: (Task & { initiativeTitle: string; initiativeStatus: Initiative["status"] })[];
 };
 
 /**
  * Full-text search (websearch syntax: quotes, -exclusions, OR) with an ilike
- * fallback so partial words still hit.
+ * fallback so partial words still hit. Covers initiative titles, areas and
+ * descriptions, log entries, and to-do items.
  */
 export async function search(q: string): Promise<SearchResult> {
   const db = getDb();
   const term = q.trim();
-  if (!term) return { initiatives: [], entries: [] };
+  if (!term) return { initiatives: [], entries: [], tasks: [] };
   const like = `%${term.replace(/[%_]/g, (m) => `\\${m}`)}%`;
   const tsq = sql`websearch_to_tsquery('english', ${term})`;
 
@@ -262,9 +264,10 @@ export async function search(q: string): Promise<SearchResult> {
     .from(initiatives)
     .where(
       or(
-        sql`to_tsvector('english', ${initiatives.title} || ' ' || ${initiatives.area}) @@ ${tsq}`,
+        sql`to_tsvector('english', ${initiatives.title} || ' ' || ${initiatives.area} || ' ' || ${initiatives.description}) @@ ${tsq}`,
         ilike(initiatives.title, like),
         ilike(initiatives.area, like),
+        ilike(initiatives.description, like),
       ),
     );
   const ids = new Set(matchedInitiatives.map((r) => r.id));
@@ -292,7 +295,30 @@ export async function search(q: string): Promise<SearchResult> {
     .orderBy(desc(logEntries.createdAt))
     .limit(100);
 
-  return { initiatives: hits, entries };
+  const taskHits = await tolerateMissingTasks(
+    () =>
+      db
+        .select({
+          id: tasks.id,
+          initiativeId: tasks.initiativeId,
+          title: tasks.title,
+          done: tasks.done,
+          doneAt: tasks.doneAt,
+          position: tasks.position,
+          createdAt: tasks.createdAt,
+          updatedAt: tasks.updatedAt,
+          initiativeTitle: initiatives.title,
+          initiativeStatus: initiatives.status,
+        })
+        .from(tasks)
+        .innerJoin(initiatives, eq(initiatives.id, tasks.initiativeId))
+        .where(or(sql`to_tsvector('english', ${tasks.title}) @@ ${tsq}`, ilike(tasks.title, like)))
+        .orderBy(asc(tasks.done), desc(tasks.updatedAt))
+        .limit(100),
+    [],
+  );
+
+  return { initiatives: hits, entries, tasks: taskHits };
 }
 
 export async function exportAll() {

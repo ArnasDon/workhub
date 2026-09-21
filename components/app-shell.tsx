@@ -48,7 +48,7 @@ export function AppHeader({ query }: { query?: string }) {
             type="search"
             name="q"
             defaultValue={query ?? ""}
-            placeholder="Search initiatives and log…"
+            placeholder="Search initiatives, to-dos and log…"
             aria-label="Search initiatives and log entries"
             className="h-9 min-w-0 bg-card pl-8"
           />

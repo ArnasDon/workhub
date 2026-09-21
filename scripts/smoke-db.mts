@@ -86,7 +86,9 @@ assert.ok(res.initiatives.some((i) => i.id === a.id));
 res = await q.search("registry -approval"); // websearch exclusion
 assert.equal(res.entries.length, 0);
 res = await q.search("");
-assert.deepEqual(res, { initiatives: [], entries: [] });
+assert.deepEqual(res, { initiatives: [], entries: [], tasks: [] });
+res = await q.search("fast"); // only in a's description ("Ship **fast**.")
+assert.deepEqual(res.initiatives.map((i) => i.id), [a.id], "descriptions are searchable");
 console.log("✓ search");
 
 // Digest: entries in window grouped per initiative, quiet detection, markdown output.
@@ -171,6 +173,8 @@ console.log("✓ search");
   assert.equal(row.taskTotal, 3);
   assert.equal(row.taskDone, 2);
   assert.equal(withTasks.find((i) => i.id === b.id)?.taskTotal, 0);
+  const found = await q.search("third");
+  assert.deepEqual(found.tasks.map((t) => [t.title, t.initiativeTitle]), [["third", "Node.js hosting launch"]], "to-dos are searchable");
   console.log("✓ tasks");
 }
 

@@ -16,7 +16,7 @@ Single-user. Next.js 16 (App Router) · TypeScript · Tailwind 4 · shadcn/ui (R
 - Quick capture: `⌘K` → pick an initiative → type → `⌘Enter`. Every card also has a "Log update" button that opens the same dialog pre-targeted.
 - **Timeline** (`/timeline`): initiatives with a target date, overdue first, then by month, with "in N days" labels. In-flight items without a date are listed so you can give them one.
 - **Digest** (`/digest`): everything logged in the last 7, 14 or 30 days grouped by initiative, plus completed, new, and gone-quiet lists. **Copy as Markdown** for a status post or 1:1 notes.
-- Full-text search over titles, areas, and log entries (`websearch` syntax: quotes, `-word`, `OR`).
+- Full-text search over titles, areas, descriptions, to-dos, and log entries (`websearch` syntax: quotes, `-word`, `OR`).
 - Export everything as JSON (backup), Markdown (readable), or CSV (log entries joined with their initiative, or one row per initiative) from the header.
 - Activity streak chip on the dashboard: consecutive days with at least one entry, plus this week's count on hover.
 - Warm cream/terracotta theme, light and dark, responsive down to phone width.

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FolderKanban, Plus, SearchX } from "lucide-react";
+import { CheckCircle2, Circle, FolderKanban, Plus, SearchX } from "lucide-react";
 import { STATUSES, STATUS_LABEL, GROUPINGS, SORTS, type Grouping, type Sort } from "@/lib/constants";
 import { getStreak, listAreas, listInitiatives, search, type InitiativeWithActivity } from "@/lib/queries";
 import { relativeDays } from "@/lib/format";
@@ -117,7 +117,7 @@ function groupItems(items: InitiativeWithActivity[], grouping: Grouping) {
 
 async function SearchResults({ q, now }: { q: string; now: Date }) {
   const res = await search(q);
-  const total = res.initiatives.length + res.entries.length;
+  const total = res.initiatives.length + res.entries.length + res.tasks.length;
 
   return (
     <div className="space-y-8">
@@ -126,7 +126,7 @@ async function SearchResults({ q, now }: { q: string; now: Date }) {
           Results for &ldquo;{q}&rdquo;
         </h1>
         <p className="text-sm text-muted-foreground">
-          {total === 0 ? "No matches." : `${res.initiatives.length} initiatives · ${res.entries.length} log entries`}
+          {total === 0 ? "No matches." : `${res.initiatives.length} initiatives · ${res.entries.length} log entries · ${res.tasks.length} to-dos`}
           {" · "}
           <Link href="/" className="underline underline-offset-4 hover:text-foreground">
             Back to dashboard
@@ -138,7 +138,7 @@ async function SearchResults({ q, now }: { q: string; now: Date }) {
         <EmptyState
           icon={SearchX}
           title="Nothing found"
-          description="Search covers titles, areas, and every log entry. Try a shorter word, quotes for an exact phrase, or -word to exclude."
+          description="Search covers titles, areas, descriptions, to-dos, and every log entry. Try a shorter word, quotes for an exact phrase, or -word to exclude."
         />
       )}
 
@@ -152,6 +152,26 @@ async function SearchResults({ q, now }: { q: string; now: Date }) {
               <InitiativeCard key={item.id} item={item} now={now} />
             ))}
           </div>
+        </section>
+      )}
+
+      {res.tasks.length > 0 && (
+        <section aria-labelledby="search-tasks">
+          <h2 id="search-tasks" className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            To-dos
+          </h2>
+          <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-xs">
+            {res.tasks.map((t) => (
+              <li key={t.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                {t.done ? <CheckCircle2 className="size-4 shrink-0 text-status-done" aria-label="Done" /> : <Circle className="size-4 shrink-0 text-muted-foreground" aria-label="Open" />}
+                <span className={t.done ? "text-muted-foreground line-through" : ""}>{t.title}</span>
+                <Link href={`/initiatives/${t.initiativeId}`} className="ml-auto shrink-0 text-xs text-muted-foreground hover:text-foreground hover:underline underline-offset-4">
+                  {t.initiativeTitle}
+                </Link>
+                <StatusBadge status={t.initiativeStatus} className="h-5 shrink-0 px-1.5 text-[11px]" />
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
