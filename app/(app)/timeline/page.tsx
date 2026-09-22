@@ -120,7 +120,7 @@ function Row({ item }: { item: Dated }) {
   const late = item.days < 0 && item.status !== "done";
   const soon = !late && item.days >= 0 && item.days <= 7 && item.status !== "done";
   return (
-    <li className="group relative flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
+    <li data-kb-card={item.id} className="group relative flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
       <Link href={`/initiatives/${item.id}`} aria-label={`Open ${item.title}`} tabIndex={-1} className="absolute inset-0" />
       <time
         dateTime={item.targetDate}

@@ -18,6 +18,7 @@ export function InitiativeCard({ item, now }: { item: InitiativeWithActivity; no
 
   return (
     <article
+      data-kb-card={item.id}
       className={cn(
         "group relative flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-xs transition-colors hover:border-primary/40 hover:shadow-sm focus-within:border-primary/40",
         item.pinned && "border-primary/30",

@@ -64,6 +64,7 @@ Several initiatives run at once (product OKRs, integrations, distribution/listin
 - Waiting-on tracker (who + since when, on cards and in the digest) — ✅ shipped 2026-09-22 (migration 0007).
 - Snooze + per-initiative check-in cadence (one stale rule everywhere) — ✅ shipped 2026-09-22 (migration 0008).
 - Initiative templates with to-do lists, "Save as template" — ✅ shipped 2026-09-22 (migration 0009).
+- Keyboard navigation (j/k/Enter/s/l/p/n, g-chords, ? help) — ✅ shipped 2026-09-22.
 
 **Out of scope unless asked:** notifications/email digests, Slack/Jira API integrations, multi-user sharing.
 

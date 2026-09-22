@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarDays, CalendarRange, Command as CommandIcon, CornerDownLeft, Gavel, LayoutTemplate, Plus, Search } from "lucide-react";
+import { ArrowLeft, CalendarDays, CalendarRange, Command as CommandIcon, CornerDownLeft, Gavel, Keyboard, LayoutTemplate, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { addLogEntry } from "@/lib/actions";
@@ -184,6 +184,16 @@ export function QuickCapture({ initiatives }: { initiatives: InitiativeOption[] 
               <CommandItem value="timeline target dates deadlines calendar" onSelect={() => go("/timeline")}>
                 <CalendarDays aria-hidden />
                 Timeline
+              </CommandItem>
+              <CommandItem
+                value="keyboard shortcuts help"
+                onSelect={() => {
+                  onOpenChange(false);
+                  setTimeout(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "?" })), 50);
+                }}
+              >
+                <Keyboard aria-hidden />
+                Keyboard shortcuts
               </CommandItem>
               <CommandItem value="templates new from template" onSelect={() => go("/templates")}>
                 <LayoutTemplate aria-hidden />

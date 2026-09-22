@@ -172,6 +172,7 @@ function BoardCard({
   const { stale } = staleState(item, now);
   return (
     <article
+      data-kb-card={overlay ? undefined : item.id}
       className={cn(
         "group relative flex flex-col gap-2 rounded-xl border bg-card p-3 shadow-xs transition-colors hover:border-primary/40",
         overlay && "rotate-1 shadow-lg ring-2 ring-primary/30",

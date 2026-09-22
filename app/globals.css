@@ -231,3 +231,10 @@
   font-style: normal;
   color: var(--muted-foreground);
 }
+
+/* Keyboard-selected card (components/keyboard-nav.tsx) */
+[data-kb-active="true"] {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-xl);
+}
