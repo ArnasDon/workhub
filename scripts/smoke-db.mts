@@ -178,6 +178,36 @@ console.log("✓ search");
   console.log("✓ tasks");
 }
 
+// Backup round trip: export → wipe → restore → same counts; re-import skips everything.
+{
+  const { parseBackup, applyBackup } = await import("../lib/import");
+  const dump = await q.exportAll();
+  assert.equal(dump.version, 2);
+  const text = JSON.stringify(dump);
+  const before = { i: dump.initiatives.length, e: dump.logEntries.length, t: dump.tasks.length, r: dump.relations.length };
+  assert.ok(before.i >= 2 && before.e >= 1 && before.t >= 1 && before.r >= 1, "fixture has data in every table");
+  await db.delete(initiatives);
+  assert.equal((await q.listInitiatives({ includeArchived: true })).length, 0);
+  const parsed = parseBackup(text);
+  assert.ok(parsed.ok, "export parses as a backup");
+  const report = await applyBackup(db as unknown as import("../db").Db, parsed.backup);
+  assert.deepEqual([report.initiatives.inserted, report.logEntries.inserted, report.tasks.inserted, report.relations.inserted], [before.i, before.e, before.t, before.r]);
+  const again = await applyBackup(db as unknown as import("../db").Db, parsed.backup);
+  assert.equal(again.initiatives.inserted + again.logEntries.inserted + again.tasks.inserted + again.relations.inserted, 0, "second import inserts nothing");
+  assert.equal(again.initiatives.skipped, before.i);
+  assert.equal(parseBackup("{nope").ok, false);
+  assert.equal(parseBackup('{"initiatives":"x"}').ok, false);
+  // v1-shaped export (no kind/description/tasks) still imports.
+  const v1 = { initiatives: [{ id: "11111111-1111-4111-8111-111111111111", title: "Old", status: "idea", priority: "low", targetDate: null, links: [], pinned: false, createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" }], logEntries: [{ id: "22222222-2222-4222-8222-222222222222", initiativeId: "11111111-1111-4111-8111-111111111111", body: "hi", createdAt: "2026-01-02T00:00:00Z" }] };
+  const p1 = parseBackup(JSON.stringify(v1));
+  assert.ok(p1.ok);
+  const r1 = await applyBackup(db as unknown as import("../db").Db, p1.backup);
+  assert.equal(r1.initiatives.inserted, 1);
+  assert.equal((await q.listEntries("11111111-1111-4111-8111-111111111111"))[0]?.kind, "update");
+  await db.delete(initiatives).where(eq(initiatives.id, "11111111-1111-4111-8111-111111111111"));
+  console.log("✓ export/import round trip");
+}
+
 // Area rollups: grouping, status mix, to-do totals, ordering (largest area first, "No area" last).
 {
   const [noArea] = await db.insert(initiatives).values({ title: "No area one", status: "idea" }).returning();

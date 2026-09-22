@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { CalendarDays, CalendarRange, Columns3, Download, Gavel, KeyRound, Layers, LayoutTemplate, List, LogOut, Menu, Moon, Sun, Sunrise } from "lucide-react";
+import { CalendarDays, CalendarRange, Columns3, Download, Gavel, KeyRound, Layers, LayoutTemplate, List, LogOut, Menu, Moon, Sun, Sunrise, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -86,6 +86,12 @@ export function MobileMenu() {
             <Download aria-hidden />
             CSV (log entries)
           </a>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/import">
+            <Upload aria-hidden />
+            Restore from JSON
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>

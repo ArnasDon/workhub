@@ -8,6 +8,7 @@ import { z } from "zod";
 import { getDb } from "@/db";
 import { initiativeRelations, initiatives, logEntries, tasks, templates, PRIORITIES, RELATION_KINDS, STATUSES, USER_ENTRY_KINDS, type Link } from "@/db/schema";
 import { applyTemplateTasks, getTemplate, parseLines } from "@/lib/templates";
+import { applyBackup, parseBackup, type ImportReport } from "@/lib/import";
 import { STATUS_LABEL } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -455,6 +456,26 @@ export async function deleteTask(id: string): Promise<ActionState> {
   revalidatePath("/");
   revalidatePath(`/initiatives/${row.initiativeId}`);
   return { ok: true };
+}
+
+// ── Import ──────────────────────────────────────────────────────────────────
+
+export type ImportState = ActionState & { report?: ImportReport; summary?: { initiatives: number; logEntries: number; tasks: number; relations: number; templates: number } };
+
+/** Restore a JSON export. Existing ids are skipped, so this merges rather than overwrites. */
+export async function importBackup(_prev: ImportState, formData: FormData): Promise<ImportState> {
+  await requireUser();
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Choose the JSON file exported from WorkHub." };
+  if (file.size > 25 * 1024 * 1024) return { ok: false, error: "That file is larger than 25 MB." };
+  const parsed = parseBackup(await file.text());
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+  const b = parsed.backup;
+  const summary = { initiatives: b.initiatives.length, logEntries: b.logEntries.length, tasks: b.tasks.length, relations: b.relations.length, templates: b.templates.length };
+  if (formData.get("mode") === "preview") return { ok: true, summary };
+  const report = await applyBackup(getDb(), b);
+  revalidatePath("/");
+  return { ok: true, report, summary };
 }
 
 // ── Auth ────────────────────────────────────────────────────────────────────
