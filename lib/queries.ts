@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, gte, ilike, max, ne, notInArray, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
-import { initiativeRelations, initiatives, logEntries, tasks, type Initiative, type LogEntry, type RelationKind, type Task } from "@/db/schema";
+import { initiativeRelations, initiatives, logEntries, tasks, templates, type Initiative, type LogEntry, type RelationKind, type Task } from "@/db/schema";
 import { rootCause } from "@/lib/db-error";
 import { daysUntil, staleState } from "@/lib/format";
 import type { Sort } from "@/lib/constants";
@@ -325,11 +325,23 @@ export async function search(q: string): Promise<SearchResult> {
 
 export async function exportAll() {
   const db = getDb();
-  const [inits, entries] = await Promise.all([
+  const [inits, entries, taskRows, relationRows, templateRows] = await Promise.all([
     db.select().from(initiatives).orderBy(asc(initiatives.createdAt)),
     db.select().from(logEntries).orderBy(asc(logEntries.createdAt)),
+    tolerateMissingTasks(() => db.select().from(tasks).orderBy(asc(tasks.createdAt)), []),
+    tolerateMissingRelations(() => db.select().from(initiativeRelations).orderBy(asc(initiativeRelations.createdAt)), []),
+    tolerateMissingTable("0009_templates.sql", () => db.select().from(templates).orderBy(asc(templates.createdAt)), []),
   ]);
-  return { exportedAt: new Date().toISOString(), initiatives: inits, logEntries: entries };
+  return {
+    format: "workhub-export" as const,
+    version: 2 as const,
+    exportedAt: new Date().toISOString(),
+    initiatives: inits,
+    logEntries: entries,
+    tasks: taskRows,
+    relations: relationRows,
+    templates: templateRows,
+  };
 }
 
 // ── Digest ──────────────────────────────────────────────────────────────────

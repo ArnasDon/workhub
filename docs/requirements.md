@@ -68,6 +68,7 @@ Several initiatives run at once (product OKRs, integrations, distribution/listin
 - Today view (attention / chase / due / focus / logged today) — ✅ shipped 2026-09-22.
 - Status history strip on the detail page (derived from the log, no schema) — ✅ shipped 2026-09-22.
 - Area rollups page — ✅ shipped 2026-09-22.
+- Restore from JSON export (merge by id; export now includes to-dos, relations, templates) — ✅ shipped 2026-09-22.
 
 **Out of scope unless asked:** notifications/email digests, Slack/Jira API integrations, multi-user sharing.
 

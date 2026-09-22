@@ -97,9 +97,9 @@ Vercel works too with the first three variables plus `ALLOWED_EMAIL`; no config 
 - **Input validation** with zod on every action; external links must be http(s); Markdown never renders raw HTML and strips unsafe URL schemes; the auth callback only follows same-origin `next` paths.
 - Dependencies are audited in CI (`npm audit --audit-level=high`).
 
-## Backups
+## Backups and restore
 
-Supabase's free tier has no automated backups. Use **Export → JSON** in the header now and then; the file contains every initiative and log entry with ids and timestamps, so it can be re-imported by hand or with a short script. The Markdown export is the human-readable version of the same data.
+Supabase's free tier has no automated backups. Use **Export → JSON** in the header now and then; the file contains every initiative, log entry, to-do, link between initiatives and template, with ids and timestamps. **Export → Restore from JSON…** (`/import`) brings such a file back: records keep their ids and anything already present is skipped, so it merges rather than overwrites, and importing the same file twice is harmless. To move to a fresh database, run the migrations there, then restore. The Markdown and CSV exports are the human-readable versions of the same data.
 
 ## Development
 

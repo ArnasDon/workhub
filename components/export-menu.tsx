@@ -1,6 +1,7 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { Download, Upload } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -34,6 +35,13 @@ export function ExportMenu() {
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <a href="/api/export?format=csv&table=initiatives" download>CSV · initiatives</a>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/import">
+            <Upload aria-hidden />
+            Restore from JSON…
+          </Link>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
