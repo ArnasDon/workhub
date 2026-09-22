@@ -178,6 +178,25 @@ console.log("✓ search");
   console.log("✓ tasks");
 }
 
+// Status history: rebuilt from "Status: A → B" entries.
+{
+  const { parseTransition, statusHistory, daysByStatus } = await import("../lib/status-history");
+  assert.deepEqual(parseTransition("Status: Idea → In progress"), { from: "idea", to: "in_progress" });
+  assert.deepEqual(parseTransition("Status: In progress → Waiting on someone (Legal)"), { from: "in_progress", to: "waiting" });
+  assert.equal(parseTransition("Snoozed until 2026-10-01"), null);
+  const created = new Date("2026-09-01T00:00:00Z");
+  const now = new Date("2026-09-21T00:00:00Z");
+  const segs = statusHistory(created, "blocked", [
+    { kind: "status", body: "Status: Idea → In progress", createdAt: new Date("2026-09-05T00:00:00Z") },
+    { kind: "update", body: "unrelated", createdAt: new Date("2026-09-06T00:00:00Z") },
+    { kind: "status", body: "Status: In progress → Blocked", createdAt: new Date("2026-09-15T00:00:00Z") },
+  ], now);
+  assert.deepEqual(segs.map((x) => [x.status, x.days]), [["idea", 4], ["in_progress", 10], ["blocked", 6]]);
+  assert.deepEqual(daysByStatus(segs), [{ status: "idea", days: 4 }, { status: "in_progress", days: 10 }, { status: "blocked", days: 6 }]);
+  assert.deepEqual(statusHistory(created, "idea", [], now).map((x) => [x.status, x.days]), [["idea", 20]]);
+  console.log("✓ statusHistory");
+}
+
 // Today: classification of overdue / stale / waiting / blocked / focus / logged today.
 {
   const now = new Date("2026-09-21T12:00:00Z");

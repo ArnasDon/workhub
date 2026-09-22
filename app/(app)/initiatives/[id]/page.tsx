@@ -12,6 +12,8 @@ import { PinButton } from "@/components/pin-button";
 import { EditInitiativeSheet } from "@/components/edit-initiative-sheet";
 import { SnoozeMenu } from "@/components/snooze-menu";
 import { SaveAsTemplateButton } from "@/components/save-as-template-button";
+import { StatusHistory } from "@/components/status-history";
+import { statusHistory } from "@/lib/status-history";
 import { DeleteInitiativeButton } from "@/components/delete-initiative-button";
 import { LogEntryForm } from "@/components/log-entry-form";
 import { LogTimeline } from "@/components/log-timeline";
@@ -95,6 +97,10 @@ export default async function InitiativePage({ params }: PageProps<"/initiatives
             <SnoozeMenu id={initiative.id} snoozedUntil={initiative.snoozedUntil} now={now} />
             <EditInitiativeSheet initiative={initiative} areas={areas} />
           </div>
+        </div>
+
+        <div className="mt-4">
+          <StatusHistory segments={statusHistory(initiative.createdAt, initiative.status, entries, now)} />
         </div>
 
         {initiative.links.length > 0 && (
