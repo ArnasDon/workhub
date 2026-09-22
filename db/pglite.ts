@@ -33,7 +33,7 @@ async function seedIfEmpty(db: ReturnType<typeof drizzle<typeof schema>>) {
     .values([
       { title: "Node.js hosting: template gallery launch", description: "Launch a **gallery of starter templates** for Node.js hosting.\n\n- Why: cuts time-to-first-deploy for new users\n- Done when: gallery live for 100% of users and tracked in analytics", area: "Node.js Hosting", status: "in_progress", priority: "high", targetDate: iso(21), pinned: true, links: [{ label: "PRD", url: "https://example.com/prd" }], createdAt: ago(40), updatedAt: ago(40) },
       { title: "Publish MCP server to registries", area: "MCP Distribution", status: "blocked", priority: "high", createdAt: ago(30), updatedAt: ago(30) },
-      { title: "Google Ads conversion import", area: "Ads Integrations", status: "waiting", priority: "medium", targetDate: iso(45), createdAt: ago(25), updatedAt: ago(25) },
+      { title: "Google Ads conversion import", area: "Ads Integrations", status: "waiting", priority: "medium", targetDate: iso(45), waitingOn: "Ads API partner team", waitingSince: ago(15), createdAt: ago(25), updatedAt: ago(25) },
       { title: "Weekly digest for 1:1s", description: "A page that compiles the week's log into a status update I can paste into Slack.", area: "Side project", status: "idea", priority: "low", createdAt: ago(3), updatedAt: ago(3) },
       { title: "Headless landing page a11y pass", area: "Node.js Hosting", status: "done", priority: "medium", createdAt: ago(60), updatedAt: ago(12) },
       { title: "Onboarding email sequence", area: "Ads Integrations", status: "in_progress", priority: "low", createdAt: ago(20), updatedAt: ago(20) },

@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import type { Initiative, Link as LinkType } from "@/db/schema";
+import type { Initiative, Link as LinkType, Status } from "@/db/schema";
 import { PRIORITIES, PRIORITY_LABEL, STATUSES, STATUS_LABEL, STATUS_STYLE } from "@/lib/constants";
 import type { ActionState } from "@/lib/actions";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,7 @@ export function InitiativeForm({ action, initiative, areas, submitLabel, onSaved
     { ok: false },
   );
   const [links, setLinks] = useState<LinkType[]>(initiative?.links?.length ? initiative.links : []);
+  const [status, setStatus] = useState<Status>(initiative?.status ?? "idea");
   const errors = state.fieldErrors ?? {};
   const listId = "areas-list";
 
@@ -94,7 +95,7 @@ export function InitiativeForm({ action, initiative, areas, submitLabel, onSaved
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="status">Status</Label>
-          <Select name="status" defaultValue={initiative?.status ?? "idea"}>
+          <Select name="status" value={status} onValueChange={(v) => setStatus(v as Status)}>
             <SelectTrigger id="status" className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -124,6 +125,14 @@ export function InitiativeForm({ action, initiative, areas, submitLabel, onSaved
           </Select>
         </div>
       </div>
+
+      {status === "waiting" && (
+        <div className="space-y-2">
+          <Label htmlFor="waitingOn">Waiting on</Label>
+          <Input id="waitingOn" name="waitingOn" defaultValue={initiative?.waitingOn ?? ""} placeholder="e.g. Legal, Jane, Ads API partner" maxLength={80} />
+          <p className="text-xs text-muted-foreground">Shown on the card with how long it has been.</p>
+        </div>
+      )}
 
       <fieldset className="space-y-2">
         <div className="flex items-center justify-between">

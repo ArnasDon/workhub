@@ -178,6 +178,21 @@ console.log("✓ search");
   console.log("✓ tasks");
 }
 
+// Waiting-on columns default empty; digest lists waiting initiatives with the name.
+{
+  const { waitingLabel } = await import("../lib/format");
+  assert.equal(waitingLabel("Jane", new Date("2026-09-18T09:00:00Z"), new Date("2026-09-21T12:00:00Z")), "Waiting on Jane · 3d");
+  assert.equal(waitingLabel("", null), "Waiting");
+  const [w] = await db.insert(initiatives).values({ title: "Waiting one", status: "waiting", waitingOn: "Legal", waitingSince: new Date("2026-09-10T00:00:00Z") }).returning();
+  const d = await q.getDigest(7, new Date("2026-09-21T12:00:00Z"));
+  assert.deepEqual(d.waiting.map((i) => [i.id, i.waitingOn]), [[w.id, "Legal"]]);
+  const { digestToMarkdown } = await import("../lib/digest");
+  assert.match(digestToMarkdown(d), /## Waiting on others\n\n- Waiting one — waiting on Legal, 11d/);
+  assert.equal((await q.getInitiative(a.id))?.waitingOn, "", "defaults to empty");
+  await db.delete(initiatives).where(eq(initiatives.id, w.id));
+  console.log("✓ waiting on");
+}
+
 // Entry kinds: default, decision listing, digest tagging.
 {
   const entries = await q.listEntries(a.id);

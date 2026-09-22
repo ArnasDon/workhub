@@ -17,13 +17,13 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowRightLeft, Ban, Clock, ExternalLink, GripVertical, MoreHorizontal, Pin } from "lucide-react";
+import { ArrowRightLeft, Ban, Clock, ExternalLink, GripVertical, MoreHorizontal, Pin, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { setStatus } from "@/lib/actions";
 import { PRIORITY_DOT, PRIORITY_LABEL, STATUS_LABEL, STATUS_STYLE, type Status } from "@/lib/constants";
 import type { InitiativeWithActivity } from "@/lib/queries";
-import { isStale, relativeDays } from "@/lib/format";
+import { isStale, relativeDays, waitingLabel } from "@/lib/format";
 import { plainText } from "@/lib/plain-text";
 import { TaskProgress } from "@/components/task-progress";
 import { openCapture } from "@/components/capture-events";
@@ -241,6 +241,12 @@ function BoardCard({
           <span className="inline-flex items-center gap-0.5">
             <ExternalLink className="size-3" aria-hidden />
             {item.links.length}
+          </span>
+        )}
+        {item.status === "waiting" && (
+          <span className="inline-flex items-center gap-0.5 font-medium text-status-waiting">
+            <UserRound className="size-3" aria-hidden />
+            {waitingLabel(item.waitingOn, item.waitingSince, now)}
           </span>
         )}
         {item.openBlockers > 0 && item.status !== "done" && (

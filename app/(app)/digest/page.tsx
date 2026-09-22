@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { format } from "date-fns";
-import { CalendarRange, CheckCircle2, MoonStar, Sparkles } from "lucide-react";
+import { CalendarRange, CheckCircle2, MoonStar, Sparkles, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getDigest } from "@/lib/queries";
 import { digestRangeLabel, digestToMarkdown } from "@/lib/digest";
-import { relativeDays } from "@/lib/format";
+import { relativeDays, waitingLabel } from "@/lib/format";
 import { CopyButton } from "@/components/copy-button";
 import { EmptyState } from "@/components/empty-state";
 import { Markdown } from "@/components/markdown";
@@ -94,8 +94,14 @@ export default async function DigestPage({ searchParams }: PageProps<"/digest">)
         </div>
       )}
 
-      {(digest.completed.length > 0 || digest.created.length > 0 || digest.quiet.length > 0) && (
-        <div className="grid gap-4 sm:grid-cols-3">
+      {(digest.completed.length > 0 || digest.created.length > 0 || digest.quiet.length > 0 || digest.waiting.length > 0) && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <SideList
+            icon={UserRound}
+            title="Waiting on others"
+            items={digest.waiting.map((i) => ({ id: i.id, title: i.title, note: waitingLabel(i.waitingOn, i.waitingSince, digest.until).replace(/^Waiting( on)? ?/, "") || undefined }))}
+            tone="text-status-waiting"
+          />
           <SideList icon={CheckCircle2} title="Completed" items={digest.completed.map((i) => ({ id: i.id, title: i.title, note: i.area }))} tone="text-status-done" />
           <SideList icon={Sparkles} title="New this period" items={digest.created.map((i) => ({ id: i.id, title: i.title, note: i.area }))} tone="text-primary" />
           <SideList

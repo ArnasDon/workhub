@@ -61,6 +61,7 @@ Several initiatives run at once (product OKRs, integrations, distribution/listin
 - To-do checklist per initiative with progress bar on cards — ✅ shipped 2026-09-21 (owner request, not in the original doc).
 - Description per initiative with a Markdown toolbar editor — ✅ shipped 2026-09-21 (owner request).
 - Entry types (update / decision / blocker / meeting; status + task automatic) and a `/decisions` log — ✅ shipped 2026-09-21 (migration 0006).
+- Waiting-on tracker (who + since when, on cards and in the digest) — ✅ shipped 2026-09-22 (migration 0007).
 
 **Out of scope unless asked:** notifications/email digests, Slack/Jira API integrations, multi-user sharing.
 
@@ -117,6 +118,7 @@ initiatives
 - target_date (date, nullable)
 - links (jsonb: [{label, url}])
 - pinned (boolean, default false)
+- waiting_on (text, default ''), waiting_since (timestamptz, nullable)   -- migration 0007
 - created_at, updated_at (timestamptz)
 
 log_entries

@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Ban, CalendarDays, Clock, ExternalLink } from "lucide-react";
+import { Ban, CalendarDays, Clock, ExternalLink, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { InitiativeWithActivity } from "@/lib/queries";
 import { PRIORITY_DOT, PRIORITY_LABEL } from "@/lib/constants";
-import { isStale, relativeDays, targetLabel } from "@/lib/format";
+import { isStale, relativeDays, targetLabel, waitingLabel } from "@/lib/format";
 import { StatusSelect } from "@/components/status-select";
 import { PinButton } from "@/components/pin-button";
 import { LogUpdateButton } from "@/components/log-update-button";
@@ -71,6 +71,12 @@ export function InitiativeCard({ item, now }: { item: InitiativeWithActivity; no
             {item.links.length}
           </span>
         )}
+        {item.status === "waiting" && (
+          <span className="inline-flex items-center gap-1 font-medium text-status-waiting">
+            <UserRound className="size-3.5" aria-hidden />
+            {waitingLabel(item.waitingOn, item.waitingSince, now)}
+          </span>
+        )}
         {item.openBlockers > 0 && item.status !== "done" && (
           <span className="inline-flex items-center gap-1 font-medium text-status-blocked" title="Open blockers">
             <Ban className="size-3.5" aria-hidden />
@@ -80,7 +86,7 @@ export function InitiativeCard({ item, now }: { item: InitiativeWithActivity; no
       </div>
 
       <div className="relative z-10 flex items-center justify-between gap-2 border-t pt-3">
-        <StatusSelect id={item.id} status={item.status} />
+        <StatusSelect id={item.id} status={item.status} waitingOn={item.waitingOn} />
         <LogUpdateButton initiativeId={item.id} size="xs" variant="ghost" />
       </div>
     </article>

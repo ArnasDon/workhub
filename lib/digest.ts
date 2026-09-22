@@ -38,6 +38,14 @@ export function digestToMarkdown(d: Digest): string {
     for (const i of d.created) out.push(`- ${i.title} — ${STATUS_LABEL[i.status]}${i.area ? `, ${i.area}` : ""}`);
     out.push("");
   }
+  if (d.waiting.length) {
+    out.push(`## Waiting on others`, "");
+    for (const i of d.waiting) {
+      const days = i.waitingSince ? differenceInCalendarDays(d.until, i.waitingSince) : null;
+      out.push(`- ${i.title} — ${i.waitingOn ? `waiting on ${i.waitingOn}` : "waiting"}${days !== null ? `, ${days}d` : ""}`);
+    }
+    out.push("");
+  }
   if (d.quiet.length) {
     out.push(`## Gone quiet (no update in ${d.days}+ days)`, "");
     for (const i of d.quiet) {
