@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarDays, CalendarRange, Command as CommandIcon, CornerDownLeft, Gavel, Keyboard, LayoutTemplate, Plus, Search, Sunrise } from "lucide-react";
+import { ArrowLeft, CalendarDays, CalendarRange, Command as CommandIcon, CornerDownLeft, Gavel, Keyboard, Layers, LayoutTemplate, Plus, Search, Sunrise } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { addLogEntry } from "@/lib/actions";
@@ -202,6 +202,10 @@ export function QuickCapture({ initiatives }: { initiatives: InitiativeOption[] 
               <CommandItem value="templates new from template" onSelect={() => go("/templates")}>
                 <LayoutTemplate aria-hidden />
                 Templates
+              </CommandItem>
+              <CommandItem value="areas rollup overview per area" onSelect={() => go("/areas")}>
+                <Layers aria-hidden />
+                Areas
               </CommandItem>
               <CommandItem value="decisions decision log" onSelect={() => go("/decisions")}>
                 <Gavel aria-hidden />

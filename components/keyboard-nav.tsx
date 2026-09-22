@@ -61,7 +61,7 @@ export function KeyboardNav() {
 
       // "g" chords
       if (chord.current && Date.now() - chord.current.at < 1500) {
-        const target = { y: "/today", l: "/", b: "/board", t: "/timeline", d: "/digest", c: "/decisions", n: "/initiatives/new" }[e.key];
+        const target = { y: "/today", l: "/", b: "/board", t: "/timeline", d: "/digest", c: "/decisions", a: "/areas", n: "/initiatives/new" }[e.key];
         chord.current = null;
         if (target) {
           e.preventDefault();
@@ -189,5 +189,6 @@ const SHORTCUTS: [string, string][] = [
   ["g t", "Go to timeline"],
   ["g d", "Go to digest"],
   ["g c", "Go to decisions"],
+  ["g a", "Go to areas"],
   ["?", "This help"],
 ];

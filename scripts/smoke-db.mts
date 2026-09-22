@@ -178,6 +178,20 @@ console.log("✓ search");
   console.log("✓ tasks");
 }
 
+// Area rollups: grouping, status mix, to-do totals, ordering (largest area first, "No area" last).
+{
+  const [noArea] = await db.insert(initiatives).values({ title: "No area one", status: "idea" }).returning();
+  const r = await q.getAreaRollups(new Date("2026-09-21T12:00:00Z"));
+  const node = r.find((x) => x.area === "Node.js Hosting")!;
+  assert.equal(node.initiatives.length, 1);
+  assert.equal(node.byStatus.in_progress, 1);
+  assert.equal(node.taskTotal, 3);
+  assert.equal(node.taskDone, 2);
+  assert.equal(r[r.length - 1].area, "", "initiatives without an area come last");
+  await db.delete(initiatives).where(eq(initiatives.id, noArea.id));
+  console.log("✓ getAreaRollups");
+}
+
 // Status history: rebuilt from "Status: A → B" entries.
 {
   const { parseTransition, statusHistory, daysByStatus } = await import("../lib/status-history");

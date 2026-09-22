@@ -67,6 +67,7 @@ Several initiatives run at once (product OKRs, integrations, distribution/listin
 - Keyboard navigation (j/k/Enter/s/l/p/n, g-chords, ? help) — ✅ shipped 2026-09-22.
 - Today view (attention / chase / due / focus / logged today) — ✅ shipped 2026-09-22.
 - Status history strip on the detail page (derived from the log, no schema) — ✅ shipped 2026-09-22.
+- Area rollups page — ✅ shipped 2026-09-22.
 
 **Out of scope unless asked:** notifications/email digests, Slack/Jira API integrations, multi-user sharing.
 
