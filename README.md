@@ -7,6 +7,7 @@ Single-user. Next.js 16 (App Router) · TypeScript · Tailwind 4 · shadcn/ui (R
 ## What's in v1
 
 - Initiatives: title, **description** (Markdown, with a formatting toolbar and preview), area/tag, status, priority, target date, links, pin.
+- **Templates** (`/templates`): a description skeleton, defaults and a to-do list you can start new initiatives from ("Use" on the templates page, or the template chips on *New initiative*). Any initiative can be saved as a template from its page.
 - **To-do list** per initiative: add, edit inline, check off, delete. Cards on the dashboard and board show a progress bar with done/total and a percentage. Checking an item off is written to the log.
 - **Related work**: link initiatives as "blocked by" or "related". Cards show "Blocked by N" while any blocker is still open; links and unlinks are written to the log.
 - Status flow `Idea → In progress → Blocked → Waiting on someone → Done → Archived`, changeable inline from the dashboard card or the detail page. Every change is written to the log. Choosing *Waiting on someone* asks **who**; cards then show "Waiting on Jane · 3d" and the digest lists everything you are waiting on, longest first.
@@ -120,6 +121,7 @@ app/
     timeline/            target dates by month, overdue on top
     digest/              weekly digest with copy-as-Markdown
     decisions/           every entry marked as a decision, newest first
+    templates/           reusable starting points (list, new, edit)
     initiatives/new      create form
     initiatives/[id]     detail: metadata, status, log form, timeline
   login/                 sign in / create account / reset password

@@ -64,6 +64,13 @@
       "when": 1790054330106,
       "tag": "0008_stale_rules",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790054501083,
+      "tag": "0009_templates",
+      "breakpoints": true
     }
   ]
 }

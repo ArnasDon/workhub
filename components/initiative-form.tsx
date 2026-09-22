@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import type { Initiative, Link as LinkType, Status } from "@/db/schema";
+import type { Initiative, Link as LinkType, Priority, Status } from "@/db/schema";
 import { PRIORITIES, PRIORITY_LABEL, STATUSES, STATUS_LABEL, STATUS_STYLE } from "@/lib/constants";
 import type { ActionState } from "@/lib/actions";
 import { cn } from "@/lib/utils";
@@ -13,15 +13,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { MarkdownEditor } from "@/components/markdown-editor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+type Defaults = Partial<Pick<Initiative, "title" | "description" | "area" | "status" | "priority" | "checkInDays" | "links">>;
+
 type Props = {
   action: (prev: ActionState, formData: FormData) => Promise<ActionState>;
   initiative?: Initiative;
+  /** Prefill for a new initiative (e.g. from a template). Ignored when editing. */
+  defaults?: Defaults;
+  /** Template to copy to-dos from on create. */
+  templateId?: string;
   areas: string[];
   submitLabel: string;
   onSaved?: () => void;
 };
 
-export function InitiativeForm({ action, initiative, areas, submitLabel, onSaved }: Props) {
+const CADENCE_LABEL: Record<string, string> = { default: "7 days (default)", "3": "3 days", "14": "2 weeks", "30": "Month", "90": "Quarter" };
+
+export function InitiativeForm({ action, initiative, defaults, templateId, areas, submitLabel, onSaved }: Props) {
+  const d: Defaults = initiative ?? defaults ?? {};
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     async (prev, fd) => {
       const res = await action(prev, fd);
@@ -30,8 +39,10 @@ export function InitiativeForm({ action, initiative, areas, submitLabel, onSaved
     },
     { ok: false },
   );
-  const [links, setLinks] = useState<LinkType[]>(initiative?.links?.length ? initiative.links : []);
-  const [status, setStatus] = useState<Status>(initiative?.status ?? "idea");
+  const [links, setLinks] = useState<LinkType[]>(d.links?.length ? d.links : []);
+  const [status, setStatus] = useState<Status>(d.status ?? "idea");
+  const [priority, setPriority] = useState<Priority>(d.priority ?? "medium");
+  const [cadence, setCadence] = useState<string>(d.checkInDays ? String(d.checkInDays) : "default");
   const errors = state.fieldErrors ?? {};
   const listId = "areas-list";
 
@@ -41,6 +52,7 @@ export function InitiativeForm({ action, initiative, areas, submitLabel, onSaved
 
   return (
     <form action={formAction} className="space-y-5">
+      {templateId && <input type="hidden" name="templateId" value={templateId} />}
       <div className="space-y-2">
         <Label htmlFor="title">Title</Label>
         <Input
@@ -48,7 +60,7 @@ export function InitiativeForm({ action, initiative, areas, submitLabel, onSaved
           name="title"
           required
           autoFocus={!initiative}
-          defaultValue={initiative?.title ?? ""}
+          defaultValue={d.title ?? ""}
           placeholder="e.g. Node.js hosting — MCP distribution"
           aria-invalid={Boolean(errors.title)}
         />
@@ -60,7 +72,7 @@ export function InitiativeForm({ action, initiative, areas, submitLabel, onSaved
         <MarkdownEditor
           id="description"
           name="description"
-          defaultValue={initiative?.description ?? ""}
+          defaultValue={d.description ?? ""}
           placeholder="What is this, why does it matter, what does done look like? Markdown with a toolbar."
           rows={5}
           aria-invalid={Boolean(errors.description)}
@@ -75,7 +87,7 @@ export function InitiativeForm({ action, initiative, areas, submitLabel, onSaved
             id="area"
             name="area"
             list={listId}
-            defaultValue={initiative?.area ?? ""}
+            defaultValue={d.area ?? ""}
             placeholder="e.g. Ads Integrations"
             autoComplete="off"
           />
@@ -97,7 +109,12 @@ export function InitiativeForm({ action, initiative, areas, submitLabel, onSaved
           <Label htmlFor="status">Status</Label>
           <Select name="status" value={status} onValueChange={(v) => setStatus(v as Status)}>
             <SelectTrigger id="status" className="w-full">
-              <SelectValue />
+              <SelectValue>
+                <span className="flex items-center gap-1.5">
+                  <span className={cn("size-1.5 rounded-full", STATUS_STYLE[status].dot)} aria-hidden />
+                  {STATUS_LABEL[status]}
+                </span>
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {STATUSES.map((s) => (
@@ -111,9 +128,9 @@ export function InitiativeForm({ action, initiative, areas, submitLabel, onSaved
         </div>
         <div className="space-y-2">
           <Label htmlFor="priority">Priority</Label>
-          <Select name="priority" defaultValue={initiative?.priority ?? "medium"}>
+          <Select name="priority" value={priority} onValueChange={(v) => setPriority(v as Priority)}>
             <SelectTrigger id="priority" className="w-full">
-              <SelectValue />
+              <SelectValue>{PRIORITY_LABEL[priority]}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {PRIORITIES.map((p) => (
@@ -137,9 +154,9 @@ export function InitiativeForm({ action, initiative, areas, submitLabel, onSaved
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="checkInDays">Expect an update every</Label>
-          <Select name="checkInDays" defaultValue={initiative?.checkInDays ? String(initiative.checkInDays) : "default"}>
+          <Select name="checkInDays" value={cadence} onValueChange={setCadence}>
             <SelectTrigger id="checkInDays" className="w-full">
-              <SelectValue />
+              <SelectValue>{CADENCE_LABEL[cadence] ?? `${cadence} days`}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="default">7 days (default)</SelectItem>
