@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { CalendarDays, CalendarRange, Columns3, Download, Gavel, KeyRound, LayoutTemplate, List, LogOut, Menu, Moon, Sun } from "lucide-react";
+import { CalendarDays, CalendarRange, Columns3, Download, Gavel, KeyRound, LayoutTemplate, List, LogOut, Menu, Moon, Sun, Sunrise } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -25,6 +25,12 @@ export function MobileMenu() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
         <DropdownMenuLabel>View</DropdownMenuLabel>
+        <DropdownMenuItem asChild>
+          <Link href="/today">
+            <Sunrise aria-hidden />
+            Today
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href="/">
             <List aria-hidden />

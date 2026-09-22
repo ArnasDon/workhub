@@ -178,6 +178,27 @@ console.log("✓ search");
   console.log("✓ tasks");
 }
 
+// Today: classification of overdue / stale / waiting / blocked / focus / logged today.
+{
+  const now = new Date("2026-09-21T12:00:00Z");
+  const [late] = await db.insert(initiatives).values({ title: "Late one", status: "in_progress", targetDate: "2026-09-15", pinned: true, createdAt: OLD, updatedAt: now }).returning();
+  await db.insert(schema.tasks).values({ initiativeId: late.id, title: "Open step", position: 0 });
+  await db.insert(logEntries).values({ initiativeId: late.id, body: "Logged this morning", createdAt: new Date("2026-09-21T08:00:00Z") });
+  const [idle] = await db.insert(initiatives).values({ title: "Idle one", status: "in_progress", createdAt: OLD, updatedAt: OLD }).returning();
+  const t = await q.getToday(now);
+  assert.ok(t.overdue.some((i) => i.id === late.id), "overdue target");
+  assert.ok(t.stale.some((i) => i.id === idle.id), "no activity since August is stale");
+  assert.ok(t.blocked.some((i) => i.id === b.id), "status blocked");
+  assert.ok(t.focus.some((f) => f.initiative.id === late.id && f.tasks.length === 1), "pinned initiative with its open to-do");
+  assert.ok(t.loggedToday.some((e) => e.initiativeTitle === "Late one"), "entry from today");
+  assert.ok(!t.stale.some((i) => i.id === late.id), "updated today is not stale");
+  assert.equal(t.attention.filter((a) => a.initiative.id === b.id).length, 1, "one attention row per initiative");
+  assert.ok(t.attention.find((a) => a.initiative.id === late.id)?.reasons.some((r) => r.kind === "overdue"));
+  await db.delete(initiatives).where(eq(initiatives.id, late.id));
+  await db.delete(initiatives).where(eq(initiatives.id, idle.id));
+  console.log("✓ getToday");
+}
+
 // Templates: list/get, apply to-dos, line parsing.
 {
   const { listTemplates, getTemplate, applyTemplateTasks, parseLines } = await import("../lib/templates");

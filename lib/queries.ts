@@ -3,7 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
 import { initiativeRelations, initiatives, logEntries, tasks, type Initiative, type LogEntry, type RelationKind, type Task } from "@/db/schema";
 import { rootCause } from "@/lib/db-error";
-import { staleState } from "@/lib/format";
+import { daysUntil, staleState } from "@/lib/format";
 import type { Sort } from "@/lib/constants";
 import { PRIORITY_RANK } from "@/lib/constants";
 
@@ -458,4 +458,84 @@ export async function listDecisions(limit = 200): Promise<DecisionEntry[]> {
     .where(eq(logEntries.kind, "decision"))
     .orderBy(desc(logEntries.createdAt))
     .limit(limit);
+}
+
+// ── Today ───────────────────────────────────────────────────────────────────
+
+export type AttentionItem = {
+  initiative: InitiativeWithActivity;
+  /** Human reasons, worst first: overdue, blocked, stale. */
+  reasons: { kind: "overdue" | "blocked" | "stale"; text: string }[];
+};
+
+export type TodayView = {
+  now: Date;
+  /** One row per initiative that is overdue, blocked and/or stale. */
+  attention: AttentionItem[];
+  overdue: InitiativeWithActivity[];
+  dueSoon: InitiativeWithActivity[];
+  stale: (InitiativeWithActivity & { idleDays: number; threshold: number })[];
+  waiting: InitiativeWithActivity[];
+  blocked: InitiativeWithActivity[];
+  focus: { initiative: InitiativeWithActivity; tasks: Task[] }[];
+  loggedToday: (LogEntry & { initiativeTitle: string })[];
+  streak: Streak;
+};
+
+/** The one screen to open in the morning: what needs a nudge, who to chase, what's due, and what's on the pinned list. */
+export async function getToday(now = new Date()): Promise<TodayView> {
+  const db = getDb();
+  const all = await listInitiatives({ includeArchived: false });
+  const active = all.filter((i) => i.status !== "done");
+
+  const overdue = active.filter((i) => i.targetDate && daysUntil(i.targetDate, now) < 0);
+  const dueSoon = active
+    .filter((i) => i.targetDate && daysUntil(i.targetDate, now) >= 0 && daysUntil(i.targetDate, now) <= 7)
+    .sort((a, b) => a.targetDate!.localeCompare(b.targetDate!));
+  const stale = active
+    .map((i) => ({ ...i, ...staleState(i, now) }))
+    .filter((i) => i.stale)
+    .sort((a, b) => b.idleDays - a.idleDays)
+    .map(({ idleDays, threshold, ...rest }) => ({ ...(rest as InitiativeWithActivity), idleDays, threshold }));
+  const waiting = active
+    .filter((i) => i.status === "waiting")
+    .sort((a, b) => (a.waitingSince?.getTime() ?? 0) - (b.waitingSince?.getTime() ?? 0));
+  const blocked = active.filter((i) => i.status === "blocked" || i.openBlockers > 0);
+
+  const pinned = active.filter((i) => i.pinned).slice(0, 6);
+  const focus = await Promise.all(
+    pinned.map(async (initiative) => ({ initiative, tasks: (await listTasks(initiative.id)).filter((t) => !t.done).slice(0, 4) })),
+  );
+
+  const startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
+  const loggedToday = await db
+    .select({
+      id: logEntries.id,
+      initiativeId: logEntries.initiativeId,
+      kind: logEntries.kind,
+      body: logEntries.body,
+      createdAt: logEntries.createdAt,
+      initiativeTitle: initiatives.title,
+    })
+    .from(logEntries)
+    .innerJoin(initiatives, eq(initiatives.id, logEntries.initiativeId))
+    .where(gte(logEntries.createdAt, startOfDay))
+    .orderBy(desc(logEntries.createdAt));
+
+  const attentionById = new Map<string, AttentionItem>();
+  const add = (i: InitiativeWithActivity, reason: AttentionItem["reasons"][number]) => {
+    const item = attentionById.get(i.id) ?? { initiative: i, reasons: [] };
+    item.reasons.push(reason);
+    attentionById.set(i.id, item);
+  };
+  for (const i of overdue) add(i, { kind: "overdue", text: `${-daysUntil(i.targetDate!, now)} ${-daysUntil(i.targetDate!, now) === 1 ? "day" : "days"} overdue` });
+  for (const i of blocked) add(i, { kind: "blocked", text: i.openBlockers > 0 ? `Blocked by ${i.openBlockers}` : "Blocked" });
+  for (const i of stale) add(i, { kind: "stale", text: `No update in ${i.idleDays}d (expects every ${i.threshold}d)` });
+  const rank = { overdue: 0, blocked: 1, stale: 2 };
+  const attention = [...attentionById.values()].sort(
+    (x, y) => rank[x.reasons[0].kind] - rank[y.reasons[0].kind] || y.reasons.length - x.reasons.length,
+  );
+
+  return { now, attention, overdue, dueSoon, stale, waiting, blocked, focus, loggedToday, streak: await getStreak(now) };
 }

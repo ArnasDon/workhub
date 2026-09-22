@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
  *   s            focus the status menu       l             log an update
  *   p            toggle pin                  n             new initiative
  *   /            focus search                ?             this help
- *   g then l/b/t/d/c   go to list / board / timeline / digest / decisions
+ *   g then y/l/b/t/d/c  go to today / list / board / timeline / digest / decisions
  * Ignored while typing or while a dialog or menu is open.
  */
 export function KeyboardNav() {
@@ -61,7 +61,7 @@ export function KeyboardNav() {
 
       // "g" chords
       if (chord.current && Date.now() - chord.current.at < 1500) {
-        const target = { l: "/", b: "/board", t: "/timeline", d: "/digest", c: "/decisions", n: "/initiatives/new" }[e.key];
+        const target = { y: "/today", l: "/", b: "/board", t: "/timeline", d: "/digest", c: "/decisions", n: "/initiatives/new" }[e.key];
         chord.current = null;
         if (target) {
           e.preventDefault();
@@ -183,6 +183,7 @@ const SHORTCUTS: [string, string][] = [
   ["n", "New initiative"],
   ["/", "Search"],
   ["⌘K", "Quick capture and jump anywhere"],
+  ["g y", "Go to today"],
   ["g l", "Go to list"],
   ["g b", "Go to board"],
   ["g t", "Go to timeline"],
