@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { CalendarDays, CalendarRange, Columns3, Gavel, List } from "lucide-react";
+import { CalendarDays, CalendarRange, Columns3, Gavel, List, Sunrise } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -13,6 +13,7 @@ export function ViewSwitch() {
   const area = sp.get("area");
   const qs = area ? `?area=${encodeURIComponent(area)}` : "";
   const items = [
+    { href: "/today", label: "Today", icon: Sunrise, active: pathname === "/today" },
     { href: `/${qs}`, label: "List", icon: List, active: pathname === "/" },
     { href: `/board${qs}`, label: "Board", icon: Columns3, active: pathname === "/board" },
     { href: "/timeline", label: "Timeline", icon: CalendarDays, active: pathname === "/timeline" },

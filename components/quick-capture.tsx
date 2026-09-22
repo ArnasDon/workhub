@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarDays, CalendarRange, Command as CommandIcon, CornerDownLeft, Gavel, Keyboard, LayoutTemplate, Plus, Search } from "lucide-react";
+import { ArrowLeft, CalendarDays, CalendarRange, Command as CommandIcon, CornerDownLeft, Gavel, Keyboard, LayoutTemplate, Plus, Search, Sunrise } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { addLogEntry } from "@/lib/actions";
@@ -180,6 +180,10 @@ export function QuickCapture({ initiatives }: { initiatives: InitiativeOption[] 
               <CommandItem value="new initiative create add" onSelect={() => go("/initiatives/new")}>
                 <Plus aria-hidden />
                 New initiative
+              </CommandItem>
+              <CommandItem value="today morning attention chase due focus" onSelect={() => go("/today")}>
+                <Sunrise aria-hidden />
+                Today
               </CommandItem>
               <CommandItem value="timeline target dates deadlines calendar" onSelect={() => go("/timeline")}>
                 <CalendarDays aria-hidden />

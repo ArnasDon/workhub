@@ -13,6 +13,7 @@ Single-user. Next.js 16 (App Router) · TypeScript · Tailwind 4 · shadcn/ui (R
 - Status flow `Idea → In progress → Blocked → Waiting on someone → Done → Archived`, changeable inline from the dashboard card or the detail page. Every change is written to the log. Choosing *Waiting on someone* asks **who**; cards then show "Waiting on Jane · 3d" and the digest lists everything you are waiting on, longest first.
 - Append-only log per initiative, grouped by day. Each entry has a type: Update, **Decision**, Blocker or Meeting (status changes and completed to-dos are typed automatically). `/decisions` collects every decision across initiatives. Entries are GitHub-flavoured Markdown: lists, bold, code, tables, task lists; bare URLs become links. Raw HTML is never rendered.
 - Dashboard grouped by status or area, sortable, area filter chips, "updated Xd ago", stale flag after 7 days (or the initiative's own **check-in cadence**), pinned items first. **Snooze** an initiative from its page to silence stale nudges until a date.
+- **Today** (`/today`): the morning screen. Needs attention (overdue, stale, blocked), Chase (who you are waiting on, longest first), Due this week, Focus (pinned initiatives with their open to-dos), and everything logged today with the streak.
 - **Board view** (`/board`): one column per status, drag cards between columns (mouse, touch, or keyboard), or use the card menu's "Move to". Every move is written to the log.
 - **Keyboard-first**: `j`/`k` move between cards, `Enter` opens, `s` focuses status, `l` logs an update, `p` pins, `n` new, `/` search, `g` then `l`/`b`/`t`/`d`/`c` jumps between views, `?` shows the cheat sheet.
 - Quick capture: `⌘K` → pick an initiative → type → `⌘Enter`. Every card also has a "Log update" button that opens the same dialog pre-targeted.
@@ -118,6 +119,7 @@ CI runs lint, typecheck, build and `npm audit --audit-level=high` on every push 
 app/
   (app)/                 authenticated shell: header + ⌘K palette
     page.tsx             dashboard (grouping, sort, filters, search results)
+    today/               morning view: attention, chase, due, focus, logged today
     board/               Kanban board (dnd-kit), one column per status
     timeline/            target dates by month, overdue on top
     digest/              weekly digest with copy-as-Markdown
