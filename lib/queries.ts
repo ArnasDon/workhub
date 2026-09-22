@@ -539,3 +539,42 @@ export async function getToday(now = new Date()): Promise<TodayView> {
 
   return { now, attention, overdue, dueSoon, stale, waiting, blocked, focus, loggedToday, streak: await getStreak(now) };
 }
+
+// ── Area rollups ────────────────────────────────────────────────────────────
+
+export type AreaRollup = {
+  area: string;
+  initiatives: InitiativeWithActivity[];
+  byStatus: Record<Initiative["status"], number>;
+  taskDone: number;
+  taskTotal: number;
+  stale: number;
+  waiting: number;
+  overdue: number;
+  lastActivityAt: Date | null;
+};
+
+/** One row per area (plus "No area"): status mix, to-do completion, stale/waiting/overdue counts, last activity. */
+export async function getAreaRollups(now = new Date()): Promise<AreaRollup[]> {
+  const all = await listInitiatives({ includeArchived: false });
+  const groups = new Map<string, InitiativeWithActivity[]>();
+  for (const i of all) groups.set(i.area, [...(groups.get(i.area) ?? []), i]);
+  const empty = (): Record<Initiative["status"], number> => ({ idea: 0, in_progress: 0, blocked: 0, waiting: 0, done: 0, archived: 0 });
+  return [...groups.entries()]
+    .map(([area, list]) => {
+      const byStatus = empty();
+      for (const i of list) byStatus[i.status] += 1;
+      return {
+        area,
+        initiatives: list,
+        byStatus,
+        taskDone: list.reduce((n, i) => n + i.taskDone, 0),
+        taskTotal: list.reduce((n, i) => n + i.taskTotal, 0),
+        stale: list.filter((i) => staleState(i, now).stale).length,
+        waiting: list.filter((i) => i.status === "waiting").length,
+        overdue: list.filter((i) => i.status !== "done" && i.targetDate && daysUntil(i.targetDate, now) < 0).length,
+        lastActivityAt: list.reduce<Date | null>((m, i) => (!m || i.lastActivityAt > m ? i.lastActivityAt : m), null),
+      };
+    })
+    .sort((a, b) => (a.area === "" ? 1 : b.area === "" ? -1 : b.initiatives.length - a.initiatives.length || a.area.localeCompare(b.area)));
+}
