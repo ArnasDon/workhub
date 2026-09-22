@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { ArrowLeft, CalendarDays, ExternalLink, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getInitiative, listAreas, listEntries, listInitiativeOptions, listRelations, listTasks } from "@/lib/queries";
+import { requireUser } from "@/lib/auth";
 import { PRIORITY_DOT, PRIORITY_LABEL } from "@/lib/constants";
 import { relativeDays, targetLabel, waitingLabel } from "@/lib/format";
 import { StatusSelect } from "@/components/status-select";
@@ -29,20 +30,22 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function generateMetadata({ params }: PageProps<"/initiatives/[id]">): Promise<Metadata> {
   const { id } = await params;
   if (!UUID.test(id)) return { title: "Not found" };
-  const initiative = await getInitiative(id);
+  const user = await requireUser();
+  const initiative = await getInitiative(user.id, id);
   return { title: initiative?.title ?? "Not found" };
 }
 
 export default async function InitiativePage({ params }: PageProps<"/initiatives/[id]">) {
   const { id } = await params;
   if (!UUID.test(id)) notFound();
+  const user = await requireUser();
   const [initiative, entries, areas, relations, options, taskRows] = await Promise.all([
-    getInitiative(id),
-    listEntries(id),
-    listAreas(),
-    listRelations(id),
-    listInitiativeOptions(),
-    listTasks(id),
+    getInitiative(user.id, id),
+    listEntries(user.id, id),
+    listAreas(user.id),
+    listRelations(user.id, id),
+    listInitiativeOptions(user.id),
+    listTasks(user.id, id),
   ]);
   if (!initiative) notFound();
 

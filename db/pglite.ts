@@ -22,15 +22,16 @@ export async function bootPglite(url: string, seed: boolean) {
   console.log(`[workhub] local PGlite database ready${dataDir ? ` at ${dataDir}` : " (in memory)"}`);
 }
 
+/** Same id scripts/mock-auth.mjs signs in as, so the seeded data belongs to the local user. */
+const LOCAL_OWNER = process.env.WORKHUB_SEED_OWNER ?? "00000000-0000-4000-8000-000000000001";
+
 const day = 86_400_000;
 const ago = (days: number, hours = 9) => new Date(Date.now() - days * day - (24 - hours) * 3_600_000);
 
 async function seedIfEmpty(db: ReturnType<typeof drizzle<typeof schema>>) {
   const [{ n }] = await db.select({ n: count() }).from(schema.initiatives);
   if (Number(n) > 0) return;
-  const rows = await db
-    .insert(schema.initiatives)
-    .values([
+  const seedRows: Omit<typeof schema.initiatives.$inferInsert, "ownerId">[] = [
       { title: "Node.js hosting: template gallery launch", description: "Launch a **gallery of starter templates** for Node.js hosting.\n\n- Why: cuts time-to-first-deploy for new users\n- Done when: gallery live for 100% of users and tracked in analytics", area: "Node.js Hosting", status: "in_progress", priority: "high", targetDate: iso(21), pinned: true, links: [{ label: "PRD", url: "https://example.com/prd" }], createdAt: ago(40), updatedAt: ago(40) },
       { title: "Publish MCP server to registries", area: "MCP Distribution", status: "blocked", priority: "high", createdAt: ago(30), updatedAt: ago(30) },
       { title: "Google Ads conversion import", area: "Ads Integrations", status: "waiting", priority: "medium", targetDate: iso(45), waitingOn: "Ads API partner team", waitingSince: ago(15), createdAt: ago(25), updatedAt: ago(25) },
@@ -38,7 +39,10 @@ async function seedIfEmpty(db: ReturnType<typeof drizzle<typeof schema>>) {
       { title: "Headless landing page a11y pass", area: "Node.js Hosting", status: "done", priority: "medium", createdAt: ago(60), updatedAt: ago(12) },
       { title: "Onboarding email sequence", area: "Ads Integrations", status: "in_progress", priority: "low", checkInDays: 30, createdAt: ago(20), updatedAt: ago(20) },
       { title: "Partner listing copy refresh", area: "MCP Distribution", status: "in_progress", priority: "medium", targetDate: iso(-4), createdAt: ago(18), updatedAt: ago(18) },
-    ])
+    ];
+  const rows = await db
+    .insert(schema.initiatives)
+    .values(seedRows.map((r) => ({ ...r, ownerId: LOCAL_OWNER })))
     .returning({ id: schema.initiatives.id, title: schema.initiatives.title });
   const id = (t: string) => rows.find((r) => r.title.startsWith(t))!.id;
   await db.insert(schema.logEntries).values([
@@ -62,6 +66,7 @@ async function seedIfEmpty(db: ReturnType<typeof drizzle<typeof schema>>) {
     { initiativeId: id("Publish"), title: "Resubmit to registry", position: 1 },
   ]);
   await db.insert(schema.templates).values({
+    ownerId: LOCAL_OWNER,
     name: "Integration partner launch",
     description: "## Goal\n\n## Partner contacts\n\n## Done when\n",
     area: "Ads Integrations",

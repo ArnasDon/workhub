@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { initiativeRelations, initiatives, logEntries, tasks, templates, ENTRY_KINDS, PRIORITIES, RELATION_KINDS, STATUSES } from "@/db/schema";
 
@@ -95,8 +96,12 @@ export function parseBackup(text: string): { ok: true; backup: Backup } | { ok: 
 
 export type ImportReport = Record<"initiatives" | "logEntries" | "tasks" | "relations" | "templates", { inserted: number; skipped: number }>;
 
-/** Insert everything, skipping ids that already exist. Children whose parent is missing are skipped too. */
-export async function applyBackup(db: Db, b: Backup): Promise<ImportReport> {
+/**
+ * Insert everything as `ownerId`'s data, skipping ids that already exist
+ * (whoever owns them). Children are only attached to initiatives this owner
+ * has, so a crafted file cannot touch another account's rows.
+ */
+export async function applyBackup(db: Db, b: Backup, ownerId: string): Promise<ImportReport> {
   const report: ImportReport = {
     initiatives: { inserted: 0, skipped: 0 },
     logEntries: { inserted: 0, skipped: 0 },
@@ -106,12 +111,12 @@ export async function applyBackup(db: Db, b: Backup): Promise<ImportReport> {
   };
   const chunk = <T,>(rows: T[], n = 200) => Array.from({ length: Math.ceil(rows.length / n) }, (_, i) => rows.slice(i * n, i * n + n));
 
-  for (const rows of chunk(b.initiatives)) {
+  for (const rows of chunk(b.initiatives.map((i) => ({ ...i, ownerId })))) {
     const r = await db.insert(initiatives).values(rows).onConflictDoNothing().returning({ id: initiatives.id });
     report.initiatives.inserted += r.length;
     report.initiatives.skipped += rows.length - r.length;
   }
-  const known = new Set((await db.select({ id: initiatives.id }).from(initiatives)).map((x) => x.id));
+  const known = new Set((await db.select({ id: initiatives.id }).from(initiatives).where(eq(initiatives.ownerId, ownerId))).map((x) => x.id));
 
   const entries = b.logEntries.filter((e) => known.has(e.initiativeId));
   report.logEntries.skipped += b.logEntries.length - entries.length;
@@ -137,7 +142,7 @@ export async function applyBackup(db: Db, b: Backup): Promise<ImportReport> {
     report.relations.skipped += rows.length - r.length;
   }
 
-  for (const rows of chunk(b.templates)) {
+  for (const rows of chunk(b.templates.map((t) => ({ ...t, ownerId })))) {
     const r = await db.insert(templates).values(rows).onConflictDoNothing().returning({ id: templates.id });
     report.templates.inserted += r.length;
     report.templates.skipped += rows.length - r.length;

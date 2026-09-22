@@ -4,7 +4,7 @@ import { isAllowedEmail } from "@/lib/allowed-email";
 import { applySecurityHeaders, buildCsp } from "@/lib/security-headers";
 import { COOKIE_OPTIONS } from "@/lib/supabase/cookie-options";
 
-const PUBLIC_PATHS = ["/login", "/auth/"];
+const PUBLIC_PATHS = ["/login", "/privacy", "/auth/"];
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => (p.endsWith("/") ? pathname.startsWith(p) : pathname === p));

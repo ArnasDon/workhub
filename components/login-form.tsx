@@ -98,7 +98,7 @@ export function LoginForm({ error, showSignOut }: { error?: string; showSignOut?
               <div className="space-y-2">
                 <Label htmlFor="confirm">Confirm password</Label>
                 <Input id="confirm" name="confirm" type="password" required minLength={8} autoComplete="new-password" />
-                <p className="text-xs text-muted-foreground">At least 8 characters. Your browser or password manager can save it.</p>
+                <p className="text-xs text-muted-foreground">At least 8 characters. Your browser or password manager can save it. You may need to confirm your email before the first sign-in.</p>
               </div>
             )}
 

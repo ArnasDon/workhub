@@ -69,6 +69,7 @@ Several initiatives run at once (product OKRs, integrations, distribution/listin
 - Status history strip on the detail page (derived from the log, no schema) — ✅ shipped 2026-09-22.
 - Area rollups page — ✅ shipped 2026-09-22.
 - Restore from JSON export (merge by id; export now includes to-dos, relations, templates) — ✅ shipped 2026-09-22.
+- **Multi-user** (owner_id on initiatives/templates, owner-scoped queries and actions, optional allowlist, account deletion, privacy page) — ✅ shipped 2026-09-22 (migration 0010). Supersedes the "single user" non-goal.
 
 **Out of scope unless asked:** notifications/email digests, Slack/Jira API integrations, multi-user sharing.
 
@@ -117,6 +118,7 @@ Remaining human steps before first real use: create the Supabase project, fill `
 ```
 initiatives
 - id (uuid, pk)
+- owner_id (uuid, Supabase Auth user)        -- migration 0010
 - title (text)
 - description (text, Markdown, default '')   -- added 2026-09-21 (migration 0004), owner request
 - area (text, default '')
@@ -143,7 +145,7 @@ tasks                           -- added 2026-09-21 (migration 0003), owner requ
 - position (int), created_at, updated_at
 
 templates                       -- added 2026-09-22 (migration 0009)
-- id, name, description (md), area, status, priority, check_in_days
+- id, owner_id (0010), name, description (md), area, status, priority, check_in_days
 - tasks (jsonb string[]), links (jsonb), created_at, updated_at
 
 initiative_relations            -- added 2026-09-21 (migration 0002)

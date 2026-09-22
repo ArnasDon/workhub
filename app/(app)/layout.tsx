@@ -7,12 +7,12 @@ import { KeyboardNav } from "@/components/keyboard-nav";
 import { DatabaseProblem } from "@/components/database-problem";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
-  await requireUser();
+  const user = await requireUser();
 
   // The first query of every page. If it fails, explain why instead of a bare 500.
   let options: Awaited<ReturnType<typeof listInitiativeOptions>>;
   try {
-    options = await listInitiativeOptions();
+    options = await listInitiativeOptions(user.id);
   } catch (err) {
     const cause = rootCause(err);
     console.error("[workhub] database error:", cause.code ?? "", cause.message ?? String(err));

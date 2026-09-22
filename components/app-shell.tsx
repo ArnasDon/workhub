@@ -79,12 +79,12 @@ export function AppHeader({ query }: { query?: string }) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button asChild variant="ghost" size="icon-sm">
-                  <Link href="/account/password" aria-label="Change password">
+                  <Link href="/account" aria-label="Account">
                     <KeyRound className="size-4" />
                   </Link>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Change password</TooltipContent>
+              <TooltipContent>Account</TooltipContent>
             </Tooltip>
             <form action="/auth/signout" method="post">
               <Tooltip>

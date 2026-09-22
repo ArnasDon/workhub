@@ -30,15 +30,17 @@ console.log("✓ RLS enabled");
 
 // Seed. Back-date updated_at so log entries, not row creation, define "last activity".
 const OLD = new Date("2026-08-01T00:00:00Z");
+const OWNER = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const OTHER = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const [a] = await db
   .insert(initiatives)
-  .values({ title: "Node.js hosting launch", description: "## Why\nShip **fast**.", area: "Node.js Hosting", status: "in_progress", priority: "high", targetDate: "2026-11-30", links: [{ label: "Doc", url: "https://example.com/doc" }], createdAt: OLD, updatedAt: OLD })
+  .values({ ownerId: OWNER, title: "Node.js hosting launch", description: "## Why\nShip **fast**.", area: "Node.js Hosting", status: "in_progress", priority: "high", targetDate: "2026-11-30", links: [{ label: "Doc", url: "https://example.com/doc" }], createdAt: OLD, updatedAt: OLD })
   .returning();
 const [b] = await db
   .insert(initiatives)
-  .values({ title: "MCP server listing", area: "MCP Distribution", status: "blocked", pinned: true, createdAt: OLD, updatedAt: OLD })
+  .values({ ownerId: OWNER, title: "MCP server listing", area: "MCP Distribution", status: "blocked", pinned: true, createdAt: OLD, updatedAt: OLD })
   .returning();
-const [c] = await db.insert(initiatives).values({ title: "Old idea", status: "archived" }).returning();
+const [c] = await db.insert(initiatives).values({ ownerId: OWNER, title: "Old idea", status: "archived" }).returning();
 await db.insert(logEntries).values([
   { initiativeId: a.id, kind: "decision", body: "Kickoff done. Decided to ship behind a flag.", createdAt: new Date("2026-09-01T10:00:00Z") },
   { initiativeId: a.id, body: "Delayed to Q4 due to eng capacity.", createdAt: new Date("2026-09-20T09:00:00Z") },
@@ -47,7 +49,7 @@ await db.insert(logEntries).values([
 console.log("✓ seeded");
 
 // listInitiatives: excludes archived, pinned first, activity computed from entries.
-const list = await q.listInitiatives();
+const list = await q.listInitiatives(OWNER);
 assert.deepEqual(list.map((i) => i.title), ["MCP server listing", "Node.js hosting launch"]);
 const nodeRow = list.find((i) => i.id === a.id)!;
 assert.equal(nodeRow.entryCount, 2);
@@ -55,10 +57,10 @@ assert.equal(nodeRow.latestEntry?.body, "Delayed to Q4 due to eng capacity.");
 assert.equal(nodeRow.lastActivityAt.toISOString(), "2026-09-20T09:00:00.000Z");
 assert.deepEqual(nodeRow.links, [{ label: "Doc", url: "https://example.com/doc" }]);
 assert.equal(nodeRow.description, "## Why\nShip **fast**.");
-assert.equal((await q.listInitiatives()).find((i) => i.id === b.id)?.description, "", "description defaults to empty");
-const withArchived = await q.listInitiatives({ includeArchived: true });
+assert.equal((await q.listInitiatives(OWNER)).find((i) => i.id === b.id)?.description, "", "description defaults to empty");
+const withArchived = await q.listInitiatives(OWNER, { includeArchived: true });
 assert.equal(withArchived.length, 3);
-const filtered = await q.listInitiatives({ area: "MCP Distribution" });
+const filtered = await q.listInitiatives(OWNER, { area: "MCP Distribution" });
 assert.deepEqual(filtered.map((i) => i.id), [b.id]);
 console.log("✓ listInitiatives");
 
@@ -70,24 +72,24 @@ assert.equal(byTarget[0].id, a.id, "items with a target date sort first");
 console.log("✓ sortInitiatives");
 
 // Areas + palette options.
-assert.deepEqual(await q.listAreas(), ["MCP Distribution", "Node.js Hosting"]);
-const options = await q.listInitiativeOptions();
+assert.deepEqual(await q.listAreas(OWNER), ["MCP Distribution", "Node.js Hosting"]);
+const options = await q.listInitiativeOptions(OWNER);
 assert.deepEqual(options.map((o) => o.id), [b.id, a.id], "pinned first, no archived");
 console.log("✓ listAreas / listInitiativeOptions");
 
 // Search: full text, partial word, exclusion, hits in both tables.
-let res = await q.search("capacity");
+let res = await q.search(OWNER, "capacity");
 assert.deepEqual(res.entries.map((e) => e.initiativeId), [a.id]);
 assert.equal(res.initiatives.length, 0);
-res = await q.search("MCP");
+res = await q.search(OWNER, "MCP");
 assert.deepEqual(res.initiatives.map((i) => i.id), [b.id]);
-res = await q.search("host"); // partial → ilike fallback
+res = await q.search(OWNER, "host"); // partial → ilike fallback
 assert.ok(res.initiatives.some((i) => i.id === a.id));
-res = await q.search("registry -approval"); // websearch exclusion
+res = await q.search(OWNER, "registry -approval"); // websearch exclusion
 assert.equal(res.entries.length, 0);
-res = await q.search("");
+res = await q.search(OWNER, "");
 assert.deepEqual(res, { initiatives: [], entries: [], tasks: [] });
-res = await q.search("fast"); // only in a's description ("Ship **fast**.")
+res = await q.search(OWNER, "fast"); // only in a's description ("Ship **fast**.")
 assert.deepEqual(res.initiatives.map((i) => i.id), [a.id], "descriptions are searchable");
 console.log("✓ search");
 
@@ -95,7 +97,7 @@ console.log("✓ search");
 {
   const { digestToMarkdown } = await import("../lib/digest");
   const now = new Date("2026-09-21T12:00:00Z");
-  const d = await q.getDigest(7, now);
+  const d = await q.getDigest(OWNER, 7, now);
   assert.equal(d.entryCount, 1, "only the 2026-09-20 entry is within 7 days");
   assert.deepEqual(d.groups.map((g) => g.initiative.id), [a.id]);
   assert.ok(d.quiet.some((i) => i.id === b.id), "blocked initiative with a 11-day-old entry is quiet");
@@ -104,7 +106,7 @@ console.log("✓ search");
   assert.match(md, /## Node.js hosting launch \(In progress · Node.js Hosting\)/);
   assert.match(md, /Delayed to Q4/);
   assert.match(md, /## Gone quiet/);
-  const wide = await q.getDigest(30, now);
+  const wide = await q.getDigest(OWNER, 30, now);
   assert.equal(wide.entryCount, 3);
   console.log("✓ getDigest / digestToMarkdown");
 }
@@ -114,11 +116,11 @@ console.log("✓ search");
   const { initiativeRelations } = schema;
   await db.insert(initiativeRelations).values({ fromId: a.id, toId: b.id, kind: "blocked_by" });
   await db.insert(initiativeRelations).values({ fromId: a.id, toId: c.id, kind: "related" });
-  const fromA = await q.listRelations(a.id);
+  const fromA = await q.listRelations(OWNER, a.id);
   assert.deepEqual(fromA.map((r) => [r.direction, r.other.id]), [["blocked_by", b.id], ["related", c.id]]);
-  const fromB = await q.listRelations(b.id);
+  const fromB = await q.listRelations(OWNER, b.id);
   assert.deepEqual(fromB.map((r) => [r.direction, r.other.id]), [["blocks", a.id]]);
-  const withBlockers = await q.listInitiatives();
+  const withBlockers = await q.listInitiatives(OWNER);
   assert.equal(withBlockers.find((i) => i.id === a.id)?.openBlockers, 1, "b is blocked and counts as an open blocker");
   assert.equal(withBlockers.find((i) => i.id === b.id)?.openBlockers, 0);
   const causeMatches = (re: RegExp) => (err: unknown) => {
@@ -129,7 +131,7 @@ console.log("✓ search");
   await assert.rejects(db.insert(initiativeRelations).values({ fromId: a.id, toId: b.id, kind: "blocked_by" }), causeMatches(/unique|duplicate/i));
   await assert.rejects(db.insert(initiativeRelations).values({ fromId: a.id, toId: a.id, kind: "related" }), causeMatches(/check|no_self/i));
   await db.update(initiatives).set({ status: "done" }).where(eq(initiatives.id, b.id));
-  assert.equal((await q.listInitiatives()).find((i) => i.id === a.id)?.openBlockers, 0, "done blockers no longer count");
+  assert.equal((await q.listInitiatives(OWNER)).find((i) => i.id === a.id)?.openBlockers, 0, "done blockers no longer count");
   await db.update(initiatives).set({ status: "blocked" }).where(eq(initiatives.id, b.id));
   console.log("✓ relations");
 }
@@ -148,7 +150,7 @@ console.log("✓ search");
   st = q.computeStreak([day("2026-09-18")], now);
   assert.equal(st.days, 0, "a gap of a day ends the streak");
   assert.equal(q.computeStreak([], now).lastEntryAt, null);
-  const live = await q.getStreak(now);
+  const live = await q.getStreak(OWNER, now);
   assert.equal(live.thisWeek, 1);
   assert.equal(live.days, 1, "seeded entry on 2026-09-20 is yesterday → streak of 1");
   console.log("✓ computeStreak / getStreak");
@@ -166,14 +168,14 @@ console.log("✓ search");
     { initiativeId: a.id, title: "second", position: 1, done: true, doneAt: new Date("2026-09-20T10:00:00Z") },
     { initiativeId: a.id, title: "third", position: 2, done: true, doneAt: new Date("2026-09-21T10:00:00Z") },
   ]);
-  const list = await q.listTasks(a.id);
+  const list = await q.listTasks(OWNER, a.id);
   assert.deepEqual(list.map((t) => t.title), ["first", "third", "second"], "open first, then completed newest first");
-  const withTasks = await q.listInitiatives();
+  const withTasks = await q.listInitiatives(OWNER);
   const row = withTasks.find((i) => i.id === a.id)!;
   assert.equal(row.taskTotal, 3);
   assert.equal(row.taskDone, 2);
   assert.equal(withTasks.find((i) => i.id === b.id)?.taskTotal, 0);
-  const found = await q.search("third");
+  const found = await q.search(OWNER, "third");
   assert.deepEqual(found.tasks.map((t) => [t.title, t.initiativeTitle]), [["third", "Node.js hosting launch"]], "to-dos are searchable");
   console.log("✓ tasks");
 }
@@ -181,18 +183,18 @@ console.log("✓ search");
 // Backup round trip: export → wipe → restore → same counts; re-import skips everything.
 {
   const { parseBackup, applyBackup } = await import("../lib/import");
-  const dump = await q.exportAll();
+  const dump = await q.exportAll(OWNER);
   assert.equal(dump.version, 2);
   const text = JSON.stringify(dump);
   const before = { i: dump.initiatives.length, e: dump.logEntries.length, t: dump.tasks.length, r: dump.relations.length };
   assert.ok(before.i >= 2 && before.e >= 1 && before.t >= 1 && before.r >= 1, "fixture has data in every table");
   await db.delete(initiatives);
-  assert.equal((await q.listInitiatives({ includeArchived: true })).length, 0);
+  assert.equal((await q.listInitiatives(OWNER, { includeArchived: true })).length, 0);
   const parsed = parseBackup(text);
   assert.ok(parsed.ok, "export parses as a backup");
-  const report = await applyBackup(db as unknown as import("../db").Db, parsed.backup);
+  const report = await applyBackup(db as unknown as import("../db").Db, parsed.backup, OWNER);
   assert.deepEqual([report.initiatives.inserted, report.logEntries.inserted, report.tasks.inserted, report.relations.inserted], [before.i, before.e, before.t, before.r]);
-  const again = await applyBackup(db as unknown as import("../db").Db, parsed.backup);
+  const again = await applyBackup(db as unknown as import("../db").Db, parsed.backup, OWNER);
   assert.equal(again.initiatives.inserted + again.logEntries.inserted + again.tasks.inserted + again.relations.inserted, 0, "second import inserts nothing");
   assert.equal(again.initiatives.skipped, before.i);
   assert.equal(parseBackup("{nope").ok, false);
@@ -201,17 +203,17 @@ console.log("✓ search");
   const v1 = { initiatives: [{ id: "11111111-1111-4111-8111-111111111111", title: "Old", status: "idea", priority: "low", targetDate: null, links: [], pinned: false, createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" }], logEntries: [{ id: "22222222-2222-4222-8222-222222222222", initiativeId: "11111111-1111-4111-8111-111111111111", body: "hi", createdAt: "2026-01-02T00:00:00Z" }] };
   const p1 = parseBackup(JSON.stringify(v1));
   assert.ok(p1.ok);
-  const r1 = await applyBackup(db as unknown as import("../db").Db, p1.backup);
+  const r1 = await applyBackup(db as unknown as import("../db").Db, p1.backup, OWNER);
   assert.equal(r1.initiatives.inserted, 1);
-  assert.equal((await q.listEntries("11111111-1111-4111-8111-111111111111"))[0]?.kind, "update");
+  assert.equal((await q.listEntries(OWNER, "11111111-1111-4111-8111-111111111111"))[0]?.kind, "update");
   await db.delete(initiatives).where(eq(initiatives.id, "11111111-1111-4111-8111-111111111111"));
   console.log("✓ export/import round trip");
 }
 
 // Area rollups: grouping, status mix, to-do totals, ordering (largest area first, "No area" last).
 {
-  const [noArea] = await db.insert(initiatives).values({ title: "No area one", status: "idea" }).returning();
-  const r = await q.getAreaRollups(new Date("2026-09-21T12:00:00Z"));
+  const [noArea] = await db.insert(initiatives).values({ ownerId: OWNER, title: "No area one", status: "idea" }).returning();
+  const r = await q.getAreaRollups(OWNER, new Date("2026-09-21T12:00:00Z"));
   const node = r.find((x) => x.area === "Node.js Hosting")!;
   assert.equal(node.initiatives.length, 1);
   assert.equal(node.byStatus.in_progress, 1);
@@ -244,11 +246,11 @@ console.log("✓ search");
 // Today: classification of overdue / stale / waiting / blocked / focus / logged today.
 {
   const now = new Date("2026-09-21T12:00:00Z");
-  const [late] = await db.insert(initiatives).values({ title: "Late one", status: "in_progress", targetDate: "2026-09-15", pinned: true, createdAt: OLD, updatedAt: now }).returning();
+  const [late] = await db.insert(initiatives).values({ ownerId: OWNER, title: "Late one", status: "in_progress", targetDate: "2026-09-15", pinned: true, createdAt: OLD, updatedAt: now }).returning();
   await db.insert(schema.tasks).values({ initiativeId: late.id, title: "Open step", position: 0 });
   await db.insert(logEntries).values({ initiativeId: late.id, body: "Logged this morning", createdAt: new Date("2026-09-21T08:00:00Z") });
-  const [idle] = await db.insert(initiatives).values({ title: "Idle one", status: "in_progress", createdAt: OLD, updatedAt: OLD }).returning();
-  const t = await q.getToday(now);
+  const [idle] = await db.insert(initiatives).values({ ownerId: OWNER, title: "Idle one", status: "in_progress", createdAt: OLD, updatedAt: OLD }).returning();
+  const t = await q.getToday(OWNER, now);
   assert.ok(t.overdue.some((i) => i.id === late.id), "overdue target");
   assert.ok(t.stale.some((i) => i.id === idle.id), "no activity since August is stale");
   assert.ok(t.blocked.some((i) => i.id === b.id), "status blocked");
@@ -266,12 +268,12 @@ console.log("✓ search");
 {
   const { listTemplates, getTemplate, applyTemplateTasks, parseLines } = await import("../lib/templates");
   assert.deepEqual(parseLines("- one\n2. two\n\n  three  \n"), ["one", "two", "three"]);
-  const [t] = await db.insert(schema.templates).values({ name: "Launch", tasks: ["Plan", "Build", "Ship"], area: "X" }).returning();
-  assert.equal((await listTemplates()).length, 1);
-  assert.equal((await getTemplate(t.id))?.name, "Launch");
-  const [fresh] = await db.insert(initiatives).values({ title: "From template" }).returning();
+  const [t] = await db.insert(schema.templates).values({ ownerId: OWNER, name: "Launch", tasks: ["Plan", "Build", "Ship"], area: "X" }).returning();
+  assert.equal((await listTemplates(OWNER)).length, 1);
+  assert.equal((await getTemplate(OWNER, t.id))?.name, "Launch");
+  const [fresh] = await db.insert(initiatives).values({ ownerId: OWNER, title: "From template" }).returning();
   assert.equal(await applyTemplateTasks(db as unknown as import("../db").Db, t, fresh.id), 3);
-  assert.deepEqual((await q.listTasks(fresh.id)).map((x) => x.title), ["Plan", "Build", "Ship"]);
+  assert.deepEqual((await q.listTasks(OWNER, fresh.id)).map((x) => x.title), ["Plan", "Build", "Ship"]);
   await db.delete(initiatives).where(eq(initiatives.id, fresh.id));
   await db.delete(schema.templates).where(eq(schema.templates.id, t.id));
   console.log("✓ templates");
@@ -287,8 +289,8 @@ console.log("✓ search");
   assert.equal(staleState({ ...base, snoozedUntil: "2026-09-25" }, now).stale, false, "snoozed");
   assert.equal(staleState({ ...base, snoozedUntil: "2026-09-20" }, now).stale, true, "snooze expired yesterday");
   assert.equal(staleState({ ...base, status: "done" }, now).stale, false);
-  const [snoozed] = await db.insert(initiatives).values({ title: "Snoozed one", status: "in_progress", snoozedUntil: "2026-10-01", createdAt: OLD, updatedAt: OLD }).returning();
-  const d = await q.getDigest(7, now);
+  const [snoozed] = await db.insert(initiatives).values({ ownerId: OWNER, title: "Snoozed one", status: "in_progress", snoozedUntil: "2026-10-01", createdAt: OLD, updatedAt: OLD }).returning();
+  const d = await q.getDigest(OWNER, 7, now);
   assert.ok(!d.quiet.some((i) => i.id === snoozed.id), "snoozed initiatives are not listed as quiet");
   await db.delete(initiatives).where(eq(initiatives.id, snoozed.id));
   console.log("✓ staleState / snooze");
@@ -299,52 +301,78 @@ console.log("✓ search");
   const { waitingLabel } = await import("../lib/format");
   assert.equal(waitingLabel("Jane", new Date("2026-09-18T09:00:00Z"), new Date("2026-09-21T12:00:00Z")), "Waiting on Jane · 3d");
   assert.equal(waitingLabel("", null), "Waiting");
-  const [w] = await db.insert(initiatives).values({ title: "Waiting one", status: "waiting", waitingOn: "Legal", waitingSince: new Date("2026-09-10T00:00:00Z") }).returning();
-  const d = await q.getDigest(7, new Date("2026-09-21T12:00:00Z"));
+  const [w] = await db.insert(initiatives).values({ ownerId: OWNER, title: "Waiting one", status: "waiting", waitingOn: "Legal", waitingSince: new Date("2026-09-10T00:00:00Z") }).returning();
+  const d = await q.getDigest(OWNER, 7, new Date("2026-09-21T12:00:00Z"));
   assert.deepEqual(d.waiting.map((i) => [i.id, i.waitingOn]), [[w.id, "Legal"]]);
   const { digestToMarkdown } = await import("../lib/digest");
   assert.match(digestToMarkdown(d), /## Waiting on others\n\n- Waiting one — waiting on Legal, 11d/);
-  assert.equal((await q.getInitiative(a.id))?.waitingOn, "", "defaults to empty");
+  assert.equal((await q.getInitiative(OWNER, a.id))?.waitingOn, "", "defaults to empty");
   await db.delete(initiatives).where(eq(initiatives.id, w.id));
   console.log("✓ waiting on");
 }
 
 // Entry kinds: default, decision listing, digest tagging.
 {
-  const entries = await q.listEntries(a.id);
+  const entries = await q.listEntries(OWNER, a.id);
   assert.equal(entries.find((e) => e.body.startsWith("Delayed"))?.kind, "update", "kind defaults to update");
-  const decisions = await q.listDecisions();
+  const decisions = await q.listDecisions(OWNER);
   assert.deepEqual(decisions.map((d) => [d.initiativeTitle, d.kind]), [["Node.js hosting launch", "decision"]]);
   const { digestToMarkdown } = await import("../lib/digest");
-  const md = digestToMarkdown(await q.getDigest(30, new Date("2026-09-21T12:00:00Z")));
+  const md = digestToMarkdown(await q.getDigest(OWNER, 30, new Date("2026-09-21T12:00:00Z")));
   assert.match(md, /— Decision: Kickoff done/);
   console.log("✓ entry kinds / listDecisions");
 }
 
+// Tenant isolation: another owner sees nothing of OWNER's data, and cannot read their rows by id.
+{
+  const [theirs] = await db.insert(initiatives).values({ ownerId: OTHER, title: "Their secret", status: "in_progress" }).returning();
+  await db.insert(logEntries).values({ initiativeId: theirs.id, body: "their note" });
+  assert.deepEqual((await q.listInitiatives(OTHER)).map((i) => i.title), ["Their secret"]);
+  assert.ok(!(await q.listInitiatives(OWNER)).some((i) => i.id === theirs.id), "OWNER does not see OTHER's initiative");
+  assert.equal(await q.getInitiative(OWNER, theirs.id), null, "by-id read is owner-checked");
+  assert.equal((await q.listEntries(OWNER, theirs.id)).length, 0, "entries are owner-checked");
+  assert.equal((await q.search(OWNER, "secret")).initiatives.length, 0, "search is owner-scoped");
+  assert.equal((await q.search(OTHER, "secret")).initiatives.length, 1);
+  assert.equal((await q.exportAll(OTHER)).initiatives.length, 1, "export only contains the owner's rows");
+  assert.ok(!(await q.exportAll(OWNER)).initiatives.some((i) => i.id === theirs.id));
+  assert.deepEqual(await q.listAreas(OTHER), []);
+  const other = await q.listInitiativeOptions(OTHER);
+  assert.deepEqual(other.map((o) => o.title), ["Their secret"]);
+  // Import as OWNER of a file referencing OTHER's initiative id: the entry must not attach to it.
+  const { parseBackup: pb, applyBackup: ab } = await import("../lib/import");
+  const crafted = pb(JSON.stringify({ initiatives: [], logEntries: [{ id: "33333333-3333-4333-8333-333333333333", initiativeId: theirs.id, body: "injected", createdAt: "2026-09-01T00:00:00Z" }] }));
+  assert.ok(crafted.ok);
+  const rep = await ab(db as unknown as import("../db").Db, crafted.backup, OWNER);
+  assert.equal(rep.logEntries.inserted, 0, "cannot attach entries to another owner's initiative");
+  assert.equal((await q.listEntries(OTHER, theirs.id)).length, 1);
+  await db.delete(initiatives).where(eq(initiatives.id, theirs.id));
+  console.log("✓ tenant isolation");
+}
+
 // Detail + entries newest first.
-const entries = await q.listEntries(a.id);
+const entries = await q.listEntries(OWNER, a.id);
 assert.equal(entries[0].body, "Delayed to Q4 due to eng capacity.");
-assert.equal((await q.getInitiative(c.id))?.status, "archived");
-assert.equal(await q.getInitiative("00000000-0000-0000-0000-000000000000"), null);
+assert.equal((await q.getInitiative(OWNER, c.id))?.status, "archived");
+assert.equal(await q.getInitiative(OWNER, "00000000-0000-0000-0000-000000000000"), null);
 console.log("✓ getInitiative / listEntries");
 
 // updated_at trigger fires on UPDATE.
-const before = (await q.getInitiative(a.id))!.updatedAt;
+const before = (await q.getInitiative(OWNER, a.id))!.updatedAt;
 await new Promise((r) => setTimeout(r, 20));
 await db.update(initiatives).set({ title: "Node.js hosting launch v2" }).where(eq(initiatives.id, a.id));
-const after = (await q.getInitiative(a.id))!.updatedAt;
+const after = (await q.getInitiative(OWNER, a.id))!.updatedAt;
 assert.ok(after > before, "updated_at trigger must bump the timestamp");
 console.log("✓ updated_at trigger");
 
 // Cascade delete removes entries and relations.
 await db.delete(initiatives).where(eq(initiatives.id, a.id));
-assert.equal((await q.listEntries(a.id)).length, 0);
-assert.equal((await q.listRelations(b.id)).length, 0, "relations pointing at a deleted initiative are gone");
-assert.equal((await q.listTasks(a.id)).length, 0, "tasks of a deleted initiative are gone");
+assert.equal((await q.listEntries(OWNER, a.id)).length, 0);
+assert.equal((await q.listRelations(OWNER, b.id)).length, 0, "relations pointing at a deleted initiative are gone");
+assert.equal((await q.listTasks(OWNER, a.id)).length, 0, "tasks of a deleted initiative are gone");
 console.log("✓ cascade delete");
 
 // Export shape.
-const dump = await q.exportAll();
+const dump = await q.exportAll(OWNER);
 assert.equal(dump.initiatives.length, 2);
 assert.equal(dump.logEntries.length, 1);
 assert.ok(dump.exportedAt);
