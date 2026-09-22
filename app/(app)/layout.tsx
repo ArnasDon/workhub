@@ -3,6 +3,7 @@ import { listInitiativeOptions } from "@/lib/queries";
 import { classifyDbError, rootCause } from "@/lib/db-error";
 import { AppHeader } from "@/components/app-shell";
 import { QuickCapture } from "@/components/quick-capture";
+import { KeyboardNav } from "@/components/keyboard-nav";
 import { DatabaseProblem } from "@/components/database-problem";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
@@ -28,6 +29,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <AppHeader />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
       <QuickCapture initiatives={options} />
+      <KeyboardNav />
     </>
   );
 }
