@@ -3,6 +3,8 @@ import { NotebookPen } from "lucide-react";
 import type { LogEntry } from "@/db/schema";
 import { dayHeading } from "@/lib/format";
 import { Markdown } from "@/components/markdown";
+import { EntryKindBadge } from "@/components/entry-kind-badge";
+import { cn } from "@/lib/utils";
 
 export function LogTimeline({ entries }: { entries: LogEntry[] }) {
   if (entries.length === 0) {
@@ -32,11 +34,14 @@ export function LogTimeline({ entries }: { entries: LogEntry[] }) {
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.heading}</h3>
           <ol className="space-y-2 border-l-2 border-border pl-4">
             {g.items.map((e) => (
-              <li key={e.id} className="relative rounded-lg bg-card px-3 py-2.5 shadow-xs">
-                <span className="absolute -left-[21px] top-3.5 size-2.5 rounded-full border-2 border-background bg-primary/70" aria-hidden />
-                <time dateTime={e.createdAt.toISOString()} className="text-xs text-muted-foreground">
-                  {format(e.createdAt, "HH:mm")}
-                </time>
+              <li key={e.id} className={cn("relative rounded-lg bg-card px-3 py-2.5 shadow-xs", e.kind === "decision" && "border-l-2 border-primary/60", e.kind === "blocker" && "border-l-2 border-status-blocked/60")}>
+                <span className={cn("absolute -left-[21px] top-3.5 size-2.5 rounded-full border-2 border-background", e.kind === "decision" ? "bg-primary" : e.kind === "blocker" ? "bg-status-blocked" : e.kind === "status" || e.kind === "task" ? "bg-muted-foreground/40" : "bg-primary/70")} aria-hidden />
+                <div className="flex items-center gap-2">
+                  <time dateTime={e.createdAt.toISOString()} className="text-xs text-muted-foreground">
+                    {format(e.createdAt, "HH:mm")}
+                  </time>
+                  <EntryKindBadge kind={e.kind} />
+                </div>
                 <Markdown text={e.body} className="mt-0.5 break-words" />
               </li>
             ))}

@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { getDb } from "@/db";
-import { initiativeRelations, initiatives, logEntries, tasks, PRIORITIES, RELATION_KINDS, STATUSES, type Link } from "@/db/schema";
+import { initiativeRelations, initiatives, logEntries, tasks, PRIORITIES, RELATION_KINDS, STATUSES, USER_ENTRY_KINDS, type Link } from "@/db/schema";
 import { STATUS_LABEL } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -106,6 +106,7 @@ export async function updateInitiative(
   if (before.status !== parsed.data.status) {
     await db.insert(logEntries).values({
       initiativeId: id,
+      kind: "status",
       body: `Status: ${STATUS_LABEL[before.status]} → ${STATUS_LABEL[parsed.data.status]}`,
     });
   }
@@ -134,7 +135,7 @@ export async function setStatus(input: { id: string; status: string; note?: stri
   const transition =
     before.status === status ? "" : `Status: ${STATUS_LABEL[before.status]} → ${STATUS_LABEL[status]}`;
   const body = [transition, note].filter(Boolean).join("\n");
-  if (body) await db.insert(logEntries).values({ initiativeId: id, body });
+  if (body) await db.insert(logEntries).values({ initiativeId: id, kind: transition ? "status" : "update", body });
   revalidatePath("/");
   revalidatePath(`/initiatives/${id}`);
   return { ok: true };
@@ -164,9 +165,10 @@ export async function deleteInitiative(id: string): Promise<never> {
 const entrySchema = z.object({
   initiativeId: z.string().uuid(),
   body: z.string().trim().min(1, "Write something first").max(20000),
+  kind: z.enum(USER_ENTRY_KINDS).default("update"),
 });
 
-export async function addLogEntry(input: { initiativeId: string; body: string }): Promise<ActionState> {
+export async function addLogEntry(input: { initiativeId: string; body: string; kind?: string }): Promise<ActionState> {
   await requireUser();
   const parsed = entrySchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid entry" };
@@ -279,7 +281,7 @@ export async function toggleTask(input: { id: string; done: boolean }): Promise<
     .returning({ initiativeId: tasks.initiativeId, title: tasks.title });
   if (!row) return { ok: false, error: "To-do not found" };
   if (parsed.data.done) {
-    await db.insert(logEntries).values({ initiativeId: row.initiativeId, body: `Done: ${row.title}` });
+    await db.insert(logEntries).values({ initiativeId: row.initiativeId, kind: "task", body: `Done: ${row.title}` });
     await db.update(initiatives).set({ updatedAt: new Date() }).where(eq(initiatives.id, row.initiativeId));
   }
   revalidatePath("/");

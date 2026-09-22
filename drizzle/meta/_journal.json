@@ -43,6 +43,13 @@
       "when": 1790015786688,
       "tag": "0005_search_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790017735497,
+      "tag": "0006_entry_kinds",
+      "breakpoints": true
     }
   ]
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { CalendarDays, CalendarRange, Columns3, List } from "lucide-react";
+import { CalendarDays, CalendarRange, Columns3, Gavel, List } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -17,6 +17,7 @@ export function ViewSwitch() {
     { href: `/board${qs}`, label: "Board", icon: Columns3, active: pathname === "/board" },
     { href: "/timeline", label: "Timeline", icon: CalendarDays, active: pathname === "/timeline" },
     { href: "/digest", label: "Digest", icon: CalendarRange, active: pathname === "/digest" },
+    { href: "/decisions", label: "Decisions", icon: Gavel, active: pathname === "/decisions" },
   ];
   return (
     <div role="group" aria-label="View" className="hidden items-center rounded-lg border bg-card p-0.5 sm:inline-flex">

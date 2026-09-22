@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarDays, CalendarRange, Command as CommandIcon, CornerDownLeft, Plus, Search } from "lucide-react";
+import { ArrowLeft, CalendarDays, CalendarRange, Command as CommandIcon, CornerDownLeft, Gavel, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { addLogEntry } from "@/lib/actions";
@@ -10,6 +10,8 @@ import { STATUS_LABEL, STATUS_STYLE, type Status } from "@/lib/constants";
 import { CAPTURE_EVENT, openCapture, type CaptureDetail } from "@/components/capture-events";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { EntryKindPicker } from "@/components/entry-kind-picker";
+import type { USER_ENTRY_KINDS } from "@/lib/constants";
 import {
   CommandDialog,
   CommandEmpty,
@@ -41,12 +43,14 @@ export function QuickCapture({ initiatives }: { initiatives: InitiativeOption[] 
   const [query, setQuery] = useState("");
   const [target, setTarget] = useState<InitiativeOption | null>(null);
   const [body, setBody] = useState("");
+  const [kind, setKind] = useState<(typeof USER_ENTRY_KINDS)[number]>("update");
   const [pending, start] = useTransition();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const reset = useCallback(() => {
     setTarget(null);
     setBody("");
+    setKind("update");
     setQuery("");
   }, []);
 
@@ -85,7 +89,7 @@ export function QuickCapture({ initiatives }: { initiatives: InitiativeOption[] 
   function submit() {
     if (!target || !body.trim()) return;
     start(async () => {
-      const res = await addLogEntry({ initiativeId: target.id, body });
+      const res = await addLogEntry({ initiativeId: target.id, body, kind });
       if (!res.ok) {
         toast.error(res.error ?? "Could not save the update");
         return;
@@ -141,6 +145,7 @@ export function QuickCapture({ initiatives }: { initiatives: InitiativeOption[] 
             rows={5}
             className="min-h-28 resize-y bg-background text-sm"
           />
+          <EntryKindPicker value={kind} onChange={setKind} />
           <div className="flex items-center justify-between gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => go(`/initiatives/${target.id}`)}>
               Open initiative
@@ -179,6 +184,10 @@ export function QuickCapture({ initiatives }: { initiatives: InitiativeOption[] 
               <CommandItem value="timeline target dates deadlines calendar" onSelect={() => go("/timeline")}>
                 <CalendarDays aria-hidden />
                 Timeline
+              </CommandItem>
+              <CommandItem value="decisions decision log" onSelect={() => go("/decisions")}>
+                <Gavel aria-hidden />
+                Decision log
               </CommandItem>
               <CommandItem value="weekly digest summary report" onSelect={() => go("/digest")}>
                 <CalendarRange aria-hidden />

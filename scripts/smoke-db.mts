@@ -40,7 +40,7 @@ const [b] = await db
   .returning();
 const [c] = await db.insert(initiatives).values({ title: "Old idea", status: "archived" }).returning();
 await db.insert(logEntries).values([
-  { initiativeId: a.id, body: "Kickoff done. Decided to ship behind a flag.", createdAt: new Date("2026-09-01T10:00:00Z") },
+  { initiativeId: a.id, kind: "decision", body: "Kickoff done. Decided to ship behind a flag.", createdAt: new Date("2026-09-01T10:00:00Z") },
   { initiativeId: a.id, body: "Delayed to Q4 due to eng capacity.", createdAt: new Date("2026-09-20T09:00:00Z") },
   { initiativeId: b.id, body: "Waiting on registry approval; pinged the maintainers.", createdAt: new Date("2026-09-10T09:00:00Z") },
 ]);
@@ -176,6 +176,18 @@ console.log("✓ search");
   const found = await q.search("third");
   assert.deepEqual(found.tasks.map((t) => [t.title, t.initiativeTitle]), [["third", "Node.js hosting launch"]], "to-dos are searchable");
   console.log("✓ tasks");
+}
+
+// Entry kinds: default, decision listing, digest tagging.
+{
+  const entries = await q.listEntries(a.id);
+  assert.equal(entries.find((e) => e.body.startsWith("Delayed"))?.kind, "update", "kind defaults to update");
+  const decisions = await q.listDecisions();
+  assert.deepEqual(decisions.map((d) => [d.initiativeTitle, d.kind]), [["Node.js hosting launch", "decision"]]);
+  const { digestToMarkdown } = await import("../lib/digest");
+  const md = digestToMarkdown(await q.getDigest(30, new Date("2026-09-21T12:00:00Z")));
+  assert.match(md, /— Decision: Kickoff done/);
+  console.log("✓ entry kinds / listDecisions");
 }
 
 // Detail + entries newest first.

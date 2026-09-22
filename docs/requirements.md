@@ -60,6 +60,7 @@ Several initiatives run at once (product OKRs, integrations, distribution/listin
 
 - To-do checklist per initiative with progress bar on cards — ✅ shipped 2026-09-21 (owner request, not in the original doc).
 - Description per initiative with a Markdown toolbar editor — ✅ shipped 2026-09-21 (owner request).
+- Entry types (update / decision / blocker / meeting; status + task automatic) and a `/decisions` log — ✅ shipped 2026-09-21 (migration 0006).
 
 **Out of scope unless asked:** notifications/email digests, Slack/Jira API integrations, multi-user sharing.
 
@@ -121,6 +122,7 @@ initiatives
 log_entries
 - id (uuid, pk)
 - initiative_id (fk → initiatives.id, cascade)
+- kind (enum entry_kind: update|decision|blocker|meeting|status|task, default update)  -- migration 0006
 - body (text)
 - created_at (timestamptz)
 

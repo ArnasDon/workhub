@@ -10,6 +10,7 @@ import { CopyButton } from "@/components/copy-button";
 import { EmptyState } from "@/components/empty-state";
 import { Markdown } from "@/components/markdown";
 import { StatusBadge } from "@/components/status-badge";
+import { EntryKindBadge } from "@/components/entry-kind-badge";
 import { Badge } from "@/components/ui/badge";
 
 export const metadata: Metadata = { title: "Digest" };
@@ -78,9 +79,12 @@ export default async function DigestPage({ searchParams }: PageProps<"/digest">)
                 {g.entries.map((e) => (
                   <li key={e.id} className="relative">
                     <span className="absolute -left-[21px] top-2 size-2.5 rounded-full border-2 border-background bg-primary/70" aria-hidden />
-                    <time dateTime={e.createdAt.toISOString()} className="text-xs text-muted-foreground">
-                      {format(e.createdAt, "EEE d MMM, HH:mm")}
-                    </time>
+                    <div className="flex items-center gap-2">
+                      <time dateTime={e.createdAt.toISOString()} className="text-xs text-muted-foreground">
+                        {format(e.createdAt, "EEE d MMM, HH:mm")}
+                      </time>
+                      <EntryKindBadge kind={e.kind} />
+                    </div>
                     <Markdown text={e.body} className="mt-0.5 break-words" />
                   </li>
                 ))}
