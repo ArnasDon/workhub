@@ -62,6 +62,7 @@ Several initiatives run at once (product OKRs, integrations, distribution/listin
 - Description per initiative with a Markdown toolbar editor — ✅ shipped 2026-09-21 (owner request).
 - Entry types (update / decision / blocker / meeting; status + task automatic) and a `/decisions` log — ✅ shipped 2026-09-21 (migration 0006).
 - Waiting-on tracker (who + since when, on cards and in the digest) — ✅ shipped 2026-09-22 (migration 0007).
+- Snooze + per-initiative check-in cadence (one stale rule everywhere) — ✅ shipped 2026-09-22 (migration 0008).
 
 **Out of scope unless asked:** notifications/email digests, Slack/Jira API integrations, multi-user sharing.
 
@@ -119,6 +120,7 @@ initiatives
 - links (jsonb: [{label, url}])
 - pinned (boolean, default false)
 - waiting_on (text, default ''), waiting_since (timestamptz, nullable)   -- migration 0007
+- snoozed_until (date, nullable), check_in_days (int, nullable)          -- migration 0008
 - created_at, updated_at (timestamptz)
 
 log_entries

@@ -10,6 +10,7 @@ import { relativeDays, targetLabel, waitingLabel } from "@/lib/format";
 import { StatusSelect } from "@/components/status-select";
 import { PinButton } from "@/components/pin-button";
 import { EditInitiativeSheet } from "@/components/edit-initiative-sheet";
+import { SnoozeMenu } from "@/components/snooze-menu";
 import { DeleteInitiativeButton } from "@/components/delete-initiative-button";
 import { LogEntryForm } from "@/components/log-entry-form";
 import { LogTimeline } from "@/components/log-timeline";
@@ -83,12 +84,14 @@ export default async function InitiativePage({ params }: PageProps<"/initiatives
                 </span>
               )}
               <span>Updated {relativeDays(lastActivity, now)}</span>
+              {initiative.checkInDays && <span>Check-in every {initiative.checkInDays}d</span>}
               <span>Created {format(initiative.createdAt, "d MMM yyyy")}</span>
             </div>
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             <StatusSelect id={initiative.id} status={initiative.status} waitingOn={initiative.waitingOn} size="default" className="h-8" />
+            <SnoozeMenu id={initiative.id} snoozedUntil={initiative.snoozedUntil} now={now} />
             <EditInitiativeSheet initiative={initiative} areas={areas} />
           </div>
         </div>

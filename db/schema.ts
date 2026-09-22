@@ -49,6 +49,10 @@ export const initiatives = pgTable(
     /** Who we are waiting on while status is `waiting`; cleared when the status changes. */
     waitingOn: text("waiting_on").notNull().default(""),
     waitingSince: timestamp("waiting_since", { withTimezone: true, mode: "date" }),
+    /** Hidden from stale/quiet nudges until this date (inclusive). */
+    snoozedUntil: date("snoozed_until", { mode: "string" }),
+    /** Expected update cadence in days; null means the global default (7). */
+    checkInDays: integer("check_in_days"),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
       .notNull()
       .defaultNow(),

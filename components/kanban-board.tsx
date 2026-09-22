@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { setStatus } from "@/lib/actions";
 import { PRIORITY_DOT, PRIORITY_LABEL, STATUS_LABEL, STATUS_STYLE, type Status } from "@/lib/constants";
 import type { InitiativeWithActivity } from "@/lib/queries";
-import { isStale, relativeDays, waitingLabel } from "@/lib/format";
+import { relativeDays, staleState, waitingLabel } from "@/lib/format";
 import { plainText } from "@/lib/plain-text";
 import { TaskProgress } from "@/components/task-progress";
 import { openCapture } from "@/components/capture-events";
@@ -169,7 +169,7 @@ function BoardCard({
   handleProps?: Record<string, unknown>;
   overlay?: boolean;
 }) {
-  const stale = item.status !== "done" && isStale(item.lastActivityAt, now);
+  const { stale } = staleState(item, now);
   return (
     <article
       className={cn(

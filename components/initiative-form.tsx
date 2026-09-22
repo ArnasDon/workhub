@@ -134,6 +134,30 @@ export function InitiativeForm({ action, initiative, areas, submitLabel, onSaved
         </div>
       )}
 
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="checkInDays">Expect an update every</Label>
+          <Select name="checkInDays" defaultValue={initiative?.checkInDays ? String(initiative.checkInDays) : "default"}>
+            <SelectTrigger id="checkInDays" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">7 days (default)</SelectItem>
+              <SelectItem value="3">3 days</SelectItem>
+              <SelectItem value="14">2 weeks</SelectItem>
+              <SelectItem value="30">Month</SelectItem>
+              <SelectItem value="90">Quarter</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">Flagged as stale after this long without an entry.</p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="snoozedUntil">Snooze until</Label>
+          <Input id="snoozedUntil" name="snoozedUntil" type="date" defaultValue={initiative?.snoozedUntil ?? ""} />
+          <p className="text-xs text-muted-foreground">No stale nudges until then. Leave empty for none.</p>
+        </div>
+      </div>
+
       <fieldset className="space-y-2">
         <div className="flex items-center justify-between">
           <legend className="text-sm font-medium">Links</legend>

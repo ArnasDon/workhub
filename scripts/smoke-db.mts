@@ -178,6 +178,23 @@ console.log("✓ search");
   console.log("✓ tasks");
 }
 
+// Stale rule: default cadence, per-item cadence, snooze, done never stale.
+{
+  const { staleState } = await import("../lib/format");
+  const now = new Date("2026-09-21T12:00:00Z");
+  const base = { status: "in_progress", lastActivityAt: new Date("2026-09-10T12:00:00Z"), snoozedUntil: null, checkInDays: null };
+  assert.equal(staleState(base, now).stale, true, "11 idle days > default 7");
+  assert.equal(staleState({ ...base, checkInDays: 30 }, now).stale, false, "own cadence of 30 days");
+  assert.equal(staleState({ ...base, snoozedUntil: "2026-09-25" }, now).stale, false, "snoozed");
+  assert.equal(staleState({ ...base, snoozedUntil: "2026-09-20" }, now).stale, true, "snooze expired yesterday");
+  assert.equal(staleState({ ...base, status: "done" }, now).stale, false);
+  const [snoozed] = await db.insert(initiatives).values({ title: "Snoozed one", status: "in_progress", snoozedUntil: "2026-10-01", createdAt: OLD, updatedAt: OLD }).returning();
+  const d = await q.getDigest(7, now);
+  assert.ok(!d.quiet.some((i) => i.id === snoozed.id), "snoozed initiatives are not listed as quiet");
+  await db.delete(initiatives).where(eq(initiatives.id, snoozed.id));
+  console.log("✓ staleState / snooze");
+}
+
 // Waiting-on columns default empty; digest lists waiting initiatives with the name.
 {
   const { waitingLabel } = await import("../lib/format");

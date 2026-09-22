@@ -49,3 +49,34 @@ export function waitingLabel(waitingOn: string, waitingSince: Date | null, now =
   const days = differenceInCalendarDays(now, waitingSince);
   return days <= 0 ? `${who} · today` : `${who} · ${days}d`;
 }
+
+export type StaleInput = {
+  status: string;
+  lastActivityAt: Date;
+  snoozedUntil: string | null;
+  checkInDays: number | null;
+};
+
+export type StaleState = {
+  /** Days since the last activity. */
+  idleDays: number;
+  /** The cadence this initiative is held to. */
+  threshold: number;
+  snoozed: boolean;
+  /** Active, past its cadence, and not snoozed. */
+  stale: boolean;
+};
+
+/** One rule for every surface: cards, board, digest, Today. */
+export function staleState(i: StaleInput, now = new Date()): StaleState {
+  const idleDays = differenceInCalendarDays(now, i.lastActivityAt);
+  const threshold = i.checkInDays ?? STALE_DAYS;
+  const snoozed = Boolean(i.snoozedUntil) && daysUntil(i.snoozedUntil as string, now) >= 0;
+  const active = i.status !== "done" && i.status !== "archived";
+  return { idleDays, threshold, snoozed, stale: active && !snoozed && idleDays >= threshold };
+}
+
+export function snoozeLabel(snoozedUntil: string, now = new Date()): string {
+  const d = daysUntil(snoozedUntil, now);
+  return d === 0 ? "Snoozed until today" : `Snoozed ${d} more ${d === 1 ? "day" : "days"}`;
+}
