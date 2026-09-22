@@ -1,13 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import {
-  Command as CommandIcon,
-  KeyRound,
-  LogOut,
-  Plus,
-  Search,
-  Sparkles,
-} from "lucide-react";
+import { Command as CommandIcon, KeyRound, LayoutTemplate, LogOut, Plus, Search, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ExportMenu } from "@/components/export-menu";
@@ -70,6 +63,16 @@ export function AppHeader({ query }: { query?: string }) {
                   ⌘K
                 </kbd>
               </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild variant="ghost" size="icon-sm">
+                  <Link href="/templates" aria-label="Templates">
+                    <LayoutTemplate className="size-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Templates</TooltipContent>
             </Tooltip>
             <ExportMenu />
             <ThemeToggle />

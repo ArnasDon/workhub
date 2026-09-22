@@ -11,6 +11,7 @@ import { StatusSelect } from "@/components/status-select";
 import { PinButton } from "@/components/pin-button";
 import { EditInitiativeSheet } from "@/components/edit-initiative-sheet";
 import { SnoozeMenu } from "@/components/snooze-menu";
+import { SaveAsTemplateButton } from "@/components/save-as-template-button";
 import { DeleteInitiativeButton } from "@/components/delete-initiative-button";
 import { LogEntryForm } from "@/components/log-entry-form";
 import { LogTimeline } from "@/components/log-timeline";
@@ -138,12 +139,13 @@ export default async function InitiativePage({ params }: PageProps<"/initiatives
         <LogTimeline entries={entries} />
       </section>
 
-      {initiative.status === "archived" && (
-        <footer className="flex items-center justify-between rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
-          <span>Archived. Kept for history; delete only if it was created by mistake.</span>
-          <DeleteInitiativeButton id={initiative.id} title={initiative.title} entryCount={entries.length} />
-        </footer>
-      )}
+      <footer className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
+        <span>{initiative.status === "archived" ? "Archived. Kept for history; delete only if it was created by mistake." : "Reuse this shape (description, defaults, to-dos) for future initiatives."}</span>
+        <div className="flex items-center gap-1">
+          <SaveAsTemplateButton initiativeId={initiative.id} />
+          {initiative.status === "archived" && <DeleteInitiativeButton id={initiative.id} title={initiative.title} entryCount={entries.length} />}
+        </div>
+      </footer>
     </div>
   );
 }

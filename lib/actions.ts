@@ -6,7 +6,8 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { getDb } from "@/db";
-import { initiativeRelations, initiatives, logEntries, tasks, PRIORITIES, RELATION_KINDS, STATUSES, USER_ENTRY_KINDS, type Link } from "@/db/schema";
+import { initiativeRelations, initiatives, logEntries, tasks, templates, PRIORITIES, RELATION_KINDS, STATUSES, USER_ENTRY_KINDS, type Link } from "@/db/schema";
+import { applyTemplateTasks, getTemplate, parseLines } from "@/lib/templates";
 import { STATUS_LABEL } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -103,8 +104,99 @@ export async function createInitiative(_prev: ActionState, formData: FormData): 
   if (firstNote) {
     await db.insert(logEntries).values({ initiativeId: row.id, body: firstNote });
   }
+  const templateId = String(formData.get("templateId") ?? "");
+  if (z.string().uuid().safeParse(templateId).success) {
+    const template = await getTemplate(templateId);
+    if (template) {
+      const n = await applyTemplateTasks(db, template, row.id);
+      await db.insert(logEntries).values({ initiativeId: row.id, kind: "status", body: `Created from template “${template.name}”${n ? ` with ${n} to-dos` : ""}` });
+    }
+  }
   revalidatePath("/");
   redirect(`/initiatives/${row.id}`);
+}
+
+// ── Templates ───────────────────────────────────────────────────────────────
+
+const templateSchema = z.object({
+  name: z.string().trim().min(1, "Give the template a name").max(120),
+  description: z.string().trim().max(20000).default(""),
+  area: z.string().trim().max(60).default(""),
+  status: z.enum(STATUSES),
+  priority: z.enum(PRIORITIES),
+  checkInDays: z
+    .string()
+    .trim()
+    .transform((v) => (v === "" || v === "default" ? null : Number(v)))
+    .pipe(z.number().int().min(1).max(365).nullable()),
+  tasks: z.array(z.string().trim().min(1).max(300)).max(50),
+  links: z.array(linkSchema).max(20),
+});
+
+function readTemplateForm(formData: FormData) {
+  return templateSchema.safeParse({
+    name: formData.get("name"),
+    description: formData.get("description") ?? "",
+    area: formData.get("area") ?? "",
+    status: formData.get("status") ?? "idea",
+    priority: formData.get("priority") ?? "medium",
+    checkInDays: formData.get("checkInDays") ?? "",
+    tasks: parseLines(formData.get("tasks")),
+    links: parseLinks(formData.get("links")),
+  });
+}
+
+export async function createTemplate(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireUser();
+  const parsed = readTemplateForm(formData);
+  if (!parsed.success) return { ok: false, fieldErrors: fieldErrors(parsed.error) };
+  const db = getDb();
+  const [row] = await db.insert(templates).values(parsed.data).returning({ id: templates.id });
+  revalidatePath("/templates");
+  redirect(`/templates/${row.id}`);
+}
+
+export async function updateTemplate(id: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireUser();
+  const parsed = readTemplateForm(formData);
+  if (!parsed.success) return { ok: false, fieldErrors: fieldErrors(parsed.error) };
+  const db = getDb();
+  await db.update(templates).set({ ...parsed.data, updatedAt: new Date() }).where(eq(templates.id, id));
+  revalidatePath("/templates");
+  revalidatePath(`/templates/${id}`);
+  return { ok: true };
+}
+
+export async function deleteTemplate(id: string): Promise<never> {
+  await requireUser();
+  const db = getDb();
+  await db.delete(templates).where(eq(templates.id, id));
+  revalidatePath("/templates");
+  redirect("/templates");
+}
+
+/** Snapshot an initiative's shape (not its log) as a reusable template. */
+export async function createTemplateFromInitiative(initiativeId: string): Promise<never> {
+  await requireUser();
+  const db = getDb();
+  const [i] = await db.select().from(initiatives).where(eq(initiatives.id, initiativeId));
+  if (!i) redirect("/");
+  const todo = await db.select({ title: tasks.title }).from(tasks).where(eq(tasks.initiativeId, initiativeId)).orderBy(tasks.position);
+  const [row] = await db
+    .insert(templates)
+    .values({
+      name: i.title,
+      description: i.description,
+      area: i.area,
+      status: "idea",
+      priority: i.priority,
+      checkInDays: i.checkInDays,
+      tasks: todo.map((t) => t.title),
+      links: i.links,
+    })
+    .returning({ id: templates.id });
+  revalidatePath("/templates");
+  redirect(`/templates/${row.id}`);
 }
 
 export async function updateInitiative(

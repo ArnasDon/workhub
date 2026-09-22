@@ -178,6 +178,21 @@ console.log("✓ search");
   console.log("✓ tasks");
 }
 
+// Templates: list/get, apply to-dos, line parsing.
+{
+  const { listTemplates, getTemplate, applyTemplateTasks, parseLines } = await import("../lib/templates");
+  assert.deepEqual(parseLines("- one\n2. two\n\n  three  \n"), ["one", "two", "three"]);
+  const [t] = await db.insert(schema.templates).values({ name: "Launch", tasks: ["Plan", "Build", "Ship"], area: "X" }).returning();
+  assert.equal((await listTemplates()).length, 1);
+  assert.equal((await getTemplate(t.id))?.name, "Launch");
+  const [fresh] = await db.insert(initiatives).values({ title: "From template" }).returning();
+  assert.equal(await applyTemplateTasks(db as unknown as import("../db").Db, t, fresh.id), 3);
+  assert.deepEqual((await q.listTasks(fresh.id)).map((x) => x.title), ["Plan", "Build", "Ship"]);
+  await db.delete(initiatives).where(eq(initiatives.id, fresh.id));
+  await db.delete(schema.templates).where(eq(schema.templates.id, t.id));
+  console.log("✓ templates");
+}
+
 // Stale rule: default cadence, per-item cadence, snooze, done never stale.
 {
   const { staleState } = await import("../lib/format");

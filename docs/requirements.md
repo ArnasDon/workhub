@@ -63,6 +63,7 @@ Several initiatives run at once (product OKRs, integrations, distribution/listin
 - Entry types (update / decision / blocker / meeting; status + task automatic) and a `/decisions` log — ✅ shipped 2026-09-21 (migration 0006).
 - Waiting-on tracker (who + since when, on cards and in the digest) — ✅ shipped 2026-09-22 (migration 0007).
 - Snooze + per-initiative check-in cadence (one stale rule everywhere) — ✅ shipped 2026-09-22 (migration 0008).
+- Initiative templates with to-do lists, "Save as template" — ✅ shipped 2026-09-22 (migration 0009).
 
 **Out of scope unless asked:** notifications/email digests, Slack/Jira API integrations, multi-user sharing.
 
@@ -135,6 +136,10 @@ tasks                           -- added 2026-09-21 (migration 0003), owner requ
 - initiative_id (fk → initiatives.id, cascade)
 - title (text), done (bool), done_at (timestamptz, nullable)
 - position (int), created_at, updated_at
+
+templates                       -- added 2026-09-22 (migration 0009)
+- id, name, description (md), area, status, priority, check_in_days
+- tasks (jsonb string[]), links (jsonb), created_at, updated_at
 
 initiative_relations            -- added 2026-09-21 (migration 0002)
 - id (uuid, pk)

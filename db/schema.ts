@@ -179,3 +179,21 @@ export type LogEntry = typeof logEntries.$inferSelect;
 export const tasksRelations = relations(tasks, ({ one }) => ({
   initiative: one(initiatives, { fields: [tasks.initiativeId], references: [initiatives.id] }),
 }));
+
+/** Reusable starting point for an initiative: description skeleton, defaults, and a to-do list. */
+export const templates = pgTable("templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  area: text("area").notNull().default(""),
+  status: statusEnum("status").notNull().default("idea"),
+  priority: priorityEnum("priority").notNull().default("medium"),
+  checkInDays: integer("check_in_days"),
+  /** To-do titles, in order. */
+  tasks: jsonb("tasks").$type<string[]>().notNull().default([]),
+  links: jsonb("links").$type<Link[]>().notNull().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+});
+
+export type Template = typeof templates.$inferSelect;
