@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
-import { ArrowLeft, CalendarDays, ExternalLink } from "lucide-react";
+import { ArrowLeft, CalendarDays, ExternalLink, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getInitiative, listAreas, listEntries, listInitiativeOptions, listRelations, listTasks } from "@/lib/queries";
 import { PRIORITY_DOT, PRIORITY_LABEL } from "@/lib/constants";
-import { relativeDays, targetLabel } from "@/lib/format";
+import { relativeDays, targetLabel, waitingLabel } from "@/lib/format";
 import { StatusSelect } from "@/components/status-select";
 import { PinButton } from "@/components/pin-button";
 import { EditInitiativeSheet } from "@/components/edit-initiative-sheet";
@@ -76,13 +76,19 @@ export default async function InitiativePage({ params }: PageProps<"/initiatives
                   {target.overdue && initiative.status !== "done" ? "Was due" : "Due"} {format(new Date(`${initiative.targetDate}T00:00:00`), "d MMM yyyy")}
                 </span>
               )}
+              {initiative.status === "waiting" && (
+                <span className="inline-flex items-center gap-1 font-medium text-status-waiting">
+                  <UserRound className="size-4" aria-hidden />
+                  {waitingLabel(initiative.waitingOn, initiative.waitingSince, now)}
+                </span>
+              )}
               <span>Updated {relativeDays(lastActivity, now)}</span>
               <span>Created {format(initiative.createdAt, "d MMM yyyy")}</span>
             </div>
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <StatusSelect id={initiative.id} status={initiative.status} size="default" className="h-8" />
+            <StatusSelect id={initiative.id} status={initiative.status} waitingOn={initiative.waitingOn} size="default" className="h-8" />
             <EditInitiativeSheet initiative={initiative} areas={areas} />
           </div>
         </div>

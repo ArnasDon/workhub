@@ -349,6 +349,8 @@ export type Digest = {
   created: InitiativeWithActivity[];
   /** Active initiatives with no entry in the window. */
   quiet: InitiativeWithActivity[];
+  /** Everything currently in "waiting", longest wait first. */
+  waiting: InitiativeWithActivity[];
 };
 
 /** Everything that happened in the last `days` days, shaped for a status update. */
@@ -384,6 +386,9 @@ export async function getDigest(days = 7, now = new Date()): Promise<Digest> {
     completed: all.filter((i) => i.status === "done" && i.lastActivityAt >= since),
     created: all.filter((i) => i.createdAt >= since),
     quiet: all.filter((i) => active.has(i.status) && i.lastActivityAt < since),
+    waiting: all
+      .filter((i) => i.status === "waiting")
+      .sort((x, y) => (x.waitingSince?.getTime() ?? 0) - (y.waitingSince?.getTime() ?? 0)),
   };
 }
 

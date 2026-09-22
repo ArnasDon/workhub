@@ -41,3 +41,11 @@ export function dueLabel(days: number): string {
   if (days < 60) return `In ${Math.round(days / 7)} weeks`;
   return `In ${Math.round(days / 30)} months`;
 }
+
+/** "Waiting on Jane · 3d" / "Waiting · 3d" / "Waiting on Jane". */
+export function waitingLabel(waitingOn: string, waitingSince: Date | null, now = new Date()): string {
+  const who = waitingOn ? `Waiting on ${waitingOn}` : "Waiting";
+  if (!waitingSince) return who;
+  const days = differenceInCalendarDays(now, waitingSince);
+  return days <= 0 ? `${who} · today` : `${who} · ${days}d`;
+}

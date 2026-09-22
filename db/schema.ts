@@ -46,6 +46,9 @@ export const initiatives = pgTable(
     targetDate: date("target_date", { mode: "string" }),
     links: jsonb("links").$type<Link[]>().notNull().default([]),
     pinned: boolean("pinned").notNull().default(false),
+    /** Who we are waiting on while status is `waiting`; cleared when the status changes. */
+    waitingOn: text("waiting_on").notNull().default(""),
+    waitingSince: timestamp("waiting_since", { withTimezone: true, mode: "date" }),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
       .notNull()
       .defaultNow(),

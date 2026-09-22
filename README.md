@@ -9,7 +9,7 @@ Single-user. Next.js 16 (App Router) · TypeScript · Tailwind 4 · shadcn/ui (R
 - Initiatives: title, **description** (Markdown, with a formatting toolbar and preview), area/tag, status, priority, target date, links, pin.
 - **To-do list** per initiative: add, edit inline, check off, delete. Cards on the dashboard and board show a progress bar with done/total and a percentage. Checking an item off is written to the log.
 - **Related work**: link initiatives as "blocked by" or "related". Cards show "Blocked by N" while any blocker is still open; links and unlinks are written to the log.
-- Status flow `Idea → In progress → Blocked → Waiting on someone → Done → Archived`, changeable inline from the dashboard card or the detail page. Every change is written to the log.
+- Status flow `Idea → In progress → Blocked → Waiting on someone → Done → Archived`, changeable inline from the dashboard card or the detail page. Every change is written to the log. Choosing *Waiting on someone* asks **who**; cards then show "Waiting on Jane · 3d" and the digest lists everything you are waiting on, longest first.
 - Append-only log per initiative, grouped by day. Each entry has a type: Update, **Decision**, Blocker or Meeting (status changes and completed to-dos are typed automatically). `/decisions` collects every decision across initiatives. Entries are GitHub-flavoured Markdown: lists, bold, code, tables, task lists; bare URLs become links. Raw HTML is never rendered.
 - Dashboard grouped by status or area, sortable, area filter chips, "updated Xd ago", stale flag after 7 days, pinned items first.
 - **Board view** (`/board`): one column per status, drag cards between columns (mouse, touch, or keyboard), or use the card menu's "Move to". Every move is written to the log.

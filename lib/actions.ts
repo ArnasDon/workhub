@@ -76,9 +76,15 @@ export async function createInitiative(_prev: ActionState, formData: FormData): 
   const parsed = readInitiativeForm(formData);
   if (!parsed.success) return { ok: false, fieldErrors: fieldErrors(parsed.error) };
   const db = getDb();
+  const creatingWaiting = parsed.data.status === "waiting";
   const [row] = await db
     .insert(initiatives)
-    .values({ ...parsed.data, links: parsed.data.links })
+    .values({
+      ...parsed.data,
+      links: parsed.data.links,
+      waitingOn: creatingWaiting ? String(formData.get("waitingOn") ?? "").trim().slice(0, 80) : "",
+      waitingSince: creatingWaiting ? new Date() : null,
+    })
     .returning({ id: initiatives.id });
   const firstNote = String(formData.get("firstNote") ?? "").trim();
   if (firstNote) {
@@ -99,15 +105,24 @@ export async function updateInitiative(
   const db = getDb();
   const [before] = await db.select({ status: initiatives.status }).from(initiatives).where(eq(initiatives.id, id));
   if (!before) return { ok: false, error: "Initiative not found" };
+  const waiting = parsed.data.status === "waiting";
+  const waitingOn = waiting ? String(formData.get("waitingOn") ?? "").trim().slice(0, 80) : "";
+  const [prev] = await db.select({ waitingSince: initiatives.waitingSince }).from(initiatives).where(eq(initiatives.id, id));
   await db
     .update(initiatives)
-    .set({ ...parsed.data, links: parsed.data.links, updatedAt: new Date() })
+    .set({
+      ...parsed.data,
+      links: parsed.data.links,
+      waitingOn,
+      waitingSince: waiting ? (before.status === "waiting" ? prev?.waitingSince ?? new Date() : new Date()) : null,
+      updatedAt: new Date(),
+    })
     .where(eq(initiatives.id, id));
   if (before.status !== parsed.data.status) {
     await db.insert(logEntries).values({
       initiativeId: id,
       kind: "status",
-      body: `Status: ${STATUS_LABEL[before.status]} → ${STATUS_LABEL[parsed.data.status]}`,
+      body: `Status: ${STATUS_LABEL[before.status]} → ${STATUS_LABEL[parsed.data.status]}${waiting && waitingOn ? ` (${waitingOn})` : ""}`,
     });
   }
   revalidatePath("/");
@@ -119,21 +134,34 @@ const statusSchema = z.object({
   id: z.string().uuid(),
   status: z.enum(STATUSES),
   note: z.string().trim().max(5000).optional(),
+  /** Who we are waiting on; only meaningful with status "waiting". */
+  waitingOn: z.string().trim().max(80).optional(),
 });
 
 /** Change status from anywhere; records the transition as a log entry so the trail stays complete. */
-export async function setStatus(input: { id: string; status: string; note?: string }): Promise<ActionState> {
+export async function setStatus(input: { id: string; status: string; note?: string; waitingOn?: string }): Promise<ActionState> {
   await requireUser();
   const parsed = statusSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid status" };
-  const { id, status, note } = parsed.data;
+  const { id, status, note, waitingOn } = parsed.data;
   const db = getDb();
-  const [before] = await db.select({ status: initiatives.status }).from(initiatives).where(eq(initiatives.id, id));
+  const [before] = await db
+    .select({ status: initiatives.status, waitingOn: initiatives.waitingOn, waitingSince: initiatives.waitingSince })
+    .from(initiatives)
+    .where(eq(initiatives.id, id));
   if (!before) return { ok: false, error: "Initiative not found" };
-  if (before.status === status && !note) return { ok: true };
-  await db.update(initiatives).set({ status, updatedAt: new Date() }).where(eq(initiatives.id, id));
+  if (before.status === status && !note && waitingOn === undefined) return { ok: true };
+  const now = new Date();
+  const waiting = status === "waiting";
+  const nextWaitingOn = waiting ? (waitingOn ?? before.waitingOn) : "";
+  const nextWaitingSince = waiting ? (before.status === "waiting" ? before.waitingSince ?? now : now) : null;
+  await db
+    .update(initiatives)
+    .set({ status, waitingOn: nextWaitingOn, waitingSince: nextWaitingSince, updatedAt: now })
+    .where(eq(initiatives.id, id));
+  const who = waiting && nextWaitingOn ? ` (${nextWaitingOn})` : "";
   const transition =
-    before.status === status ? "" : `Status: ${STATUS_LABEL[before.status]} → ${STATUS_LABEL[status]}`;
+    before.status === status ? "" : `Status: ${STATUS_LABEL[before.status]} → ${STATUS_LABEL[status]}${who}`;
   const body = [transition, note].filter(Boolean).join("\n");
   if (body) await db.insert(logEntries).values({ initiativeId: id, kind: transition ? "status" : "update", body });
   revalidatePath("/");

@@ -50,6 +50,13 @@
       "when": 1790017735497,
       "tag": "0006_entry_kinds",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790046597740,
+      "tag": "0007_waiting_on",
+      "breakpoints": true
     }
   ]
 }
