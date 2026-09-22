@@ -3,6 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
 import { initiativeRelations, initiatives, logEntries, tasks, type Initiative, type LogEntry, type RelationKind, type Task } from "@/db/schema";
 import { rootCause } from "@/lib/db-error";
+import { staleState } from "@/lib/format";
 import type { Sort } from "@/lib/constants";
 import { PRIORITY_RANK } from "@/lib/constants";
 
@@ -385,7 +386,8 @@ export async function getDigest(days = 7, now = new Date()): Promise<Digest> {
     groups,
     completed: all.filter((i) => i.status === "done" && i.lastActivityAt >= since),
     created: all.filter((i) => i.createdAt >= since),
-    quiet: all.filter((i) => active.has(i.status) && i.lastActivityAt < since),
+    // Quiet = past its own cadence (default 7d) with no entry in the window, and not snoozed.
+    quiet: all.filter((i) => active.has(i.status) && i.lastActivityAt < since && staleState(i, now).stale),
     waiting: all
       .filter((i) => i.status === "waiting")
       .sort((x, y) => (x.waitingSince?.getTime() ?? 0) - (y.waitingSince?.getTime() ?? 0)),

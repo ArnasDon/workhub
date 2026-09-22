@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Ban, CalendarDays, Clock, ExternalLink, UserRound } from "lucide-react";
+import { Ban, BellOff, CalendarDays, Clock, ExternalLink, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { InitiativeWithActivity } from "@/lib/queries";
 import { PRIORITY_DOT, PRIORITY_LABEL } from "@/lib/constants";
-import { isStale, relativeDays, targetLabel, waitingLabel } from "@/lib/format";
+import { relativeDays, snoozeLabel, staleState, targetLabel, waitingLabel } from "@/lib/format";
 import { StatusSelect } from "@/components/status-select";
 import { PinButton } from "@/components/pin-button";
 import { LogUpdateButton } from "@/components/log-update-button";
@@ -12,7 +12,7 @@ import { plainText } from "@/lib/plain-text";
 import { TaskProgress } from "@/components/task-progress";
 
 export function InitiativeCard({ item, now }: { item: InitiativeWithActivity; now: Date }) {
-  const stale = item.status !== "done" && item.status !== "archived" && isStale(item.lastActivityAt, now);
+  const { stale, snoozed } = staleState(item, now);
   const target = targetLabel(item.targetDate, now);
   const href = `/initiatives/${item.id}`;
 
@@ -69,6 +69,12 @@ export function InitiativeCard({ item, now }: { item: InitiativeWithActivity; no
           <span className="inline-flex items-center gap-1">
             <ExternalLink className="size-3.5" aria-hidden />
             {item.links.length}
+          </span>
+        )}
+        {snoozed && item.snoozedUntil && (
+          <span className="inline-flex items-center gap-1" title={`Snoozed until ${item.snoozedUntil}`}>
+            <BellOff className="size-3.5" aria-hidden />
+            {snoozeLabel(item.snoozedUntil, now)}
           </span>
         )}
         {item.status === "waiting" && (

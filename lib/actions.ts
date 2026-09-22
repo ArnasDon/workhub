@@ -37,6 +37,17 @@ const initiativeSchema = z.object({
     .or(z.literal(""))
     .transform((v) => (v === "" ? null : v)),
   links: z.array(linkSchema).max(20),
+  snoozedUntil: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD")
+    .or(z.literal(""))
+    .transform((v) => (v === "" ? null : v)),
+  checkInDays: z
+    .string()
+    .trim()
+    .transform((v) => (v === "" || v === "default" ? null : Number(v)))
+    .pipe(z.number().int().min(1).max(365).nullable()),
 });
 
 function parseLinks(raw: FormDataEntryValue | null): unknown {
@@ -68,6 +79,8 @@ function readInitiativeForm(formData: FormData) {
     priority: formData.get("priority") ?? "medium",
     targetDate: formData.get("targetDate") ?? "",
     links: parseLinks(formData.get("links")),
+    snoozedUntil: formData.get("snoozedUntil") ?? "",
+    checkInDays: formData.get("checkInDays") ?? "",
   });
 }
 
@@ -207,6 +220,30 @@ export async function addLogEntry(input: { initiativeId: string; body: string; k
   await db.update(initiatives).set({ updatedAt: new Date() }).where(eq(initiatives.id, parsed.data.initiativeId));
   revalidatePath("/");
   revalidatePath(`/initiatives/${parsed.data.initiativeId}`);
+  return { ok: true };
+}
+
+// ── Snooze ──────────────────────────────────────────────────────────────────
+
+/** Hide from stale nudges until a date (YYYY-MM-DD), or clear with null. Logged so the trail explains the quiet period. */
+export async function setSnooze(input: { id: string; until: string | null }): Promise<ActionState> {
+  await requireUser();
+  const parsed = z
+    .object({ id: z.string().uuid(), until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable() })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Invalid snooze date" };
+  const db = getDb();
+  const [row] = await db
+    .update(initiatives)
+    .set({ snoozedUntil: parsed.data.until })
+    .where(eq(initiatives.id, parsed.data.id))
+    .returning({ id: initiatives.id });
+  if (!row) return { ok: false, error: "Initiative not found" };
+  if (parsed.data.until) {
+    await db.insert(logEntries).values({ initiativeId: parsed.data.id, kind: "status", body: `Snoozed until ${parsed.data.until}` });
+  }
+  revalidatePath("/");
+  revalidatePath(`/initiatives/${parsed.data.id}`);
   return { ok: true };
 }
 
