@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Sparkles } from "lucide-react";
+import { LogoTile } from "@/components/logo";
 import { LoginForm } from "@/components/login-form";
 import { isConfigured } from "@/lib/auth";
 
@@ -19,9 +19,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
     <main className="flex flex-1 items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-8">
         <div className="space-y-2 text-center">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Sparkles className="size-6" aria-hidden />
-          </div>
+          <LogoTile size="lg" className="mx-auto" />
           <h1 className="text-2xl font-semibold tracking-tight">WorkHub</h1>
           <p className="text-sm text-muted-foreground">
             Your initiatives, with a running log.

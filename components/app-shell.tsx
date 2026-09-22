@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { Command as CommandIcon, KeyRound, LayoutTemplate, LogOut, Plus, Search, Sparkles } from "lucide-react";
+import { Command as CommandIcon, KeyRound, LayoutTemplate, LogOut, Plus, Search } from "lucide-react";
+import { LogoTile } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ExportMenu } from "@/components/export-menu";
@@ -22,9 +23,7 @@ export function AppHeader({ query }: { query?: string }) {
           href="/"
           className="flex items-center gap-2 font-semibold tracking-tight"
         >
-          <span className="flex size-7 items-center justify-center rounded-lg bg-primary/12 text-primary">
-            <Sparkles className="size-4" aria-hidden />
-          </span>
+          <LogoTile />
           <span className="hidden sm:inline">WorkHub</span>
         </Link>
 

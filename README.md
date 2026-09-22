@@ -1,4 +1,4 @@
-# WorkHub
+# <img src="public/logo.svg" width="28" height="28" alt=""> WorkHub
 
 A personal work tracker shaped around **initiatives with a running log**, not tickets. One dashboard shows everything in flight and how stale it is; every initiative keeps an append-only trail of what happened, what you decided, and what's next.
 
