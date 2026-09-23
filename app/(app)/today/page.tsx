@@ -5,6 +5,7 @@ import { AlertTriangle, Ban, CalendarClock, ListChecks, MoonStar, NotebookPen, P
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getToday, type InitiativeWithActivity } from "@/lib/queries";
+import { requireUser } from "@/lib/auth";
 import { dueLabel, daysUntil, relativeDays, waitingLabel } from "@/lib/format";
 import { plainText } from "@/lib/plain-text";
 import { StatusBadge } from "@/components/status-badge";
@@ -17,7 +18,8 @@ export const metadata: Metadata = { title: "Today" };
 export const dynamic = "force-dynamic";
 
 export default async function TodayPage() {
-  const t = await getToday();
+  const user = await requireUser();
+  const t = await getToday(user.id);
   const attention = t.attention.length;
   const quiet = attention === 0 && t.waiting.length === 0 && t.dueSoon.length === 0;
 

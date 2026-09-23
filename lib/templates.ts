@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { getDb, type Db } from "@/db";
 import { tasks, templates, type Template } from "@/db/schema";
 import { rootCause } from "@/lib/db-error";
@@ -15,15 +15,15 @@ async function tolerate<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   }
 }
 
-export async function listTemplates(): Promise<Template[]> {
+export async function listTemplates(ownerId: string): Promise<Template[]> {
   const db = getDb();
-  return tolerate(() => db.select().from(templates).orderBy(asc(templates.name)), []);
+  return tolerate(() => db.select().from(templates).where(eq(templates.ownerId, ownerId)).orderBy(asc(templates.name)), []);
 }
 
-export async function getTemplate(id: string): Promise<Template | null> {
+export async function getTemplate(ownerId: string, id: string): Promise<Template | null> {
   const db = getDb();
   return tolerate(async () => {
-    const [row] = await db.select().from(templates).where(eq(templates.id, id)).limit(1);
+    const [row] = await db.select().from(templates).where(and(eq(templates.id, id), eq(templates.ownerId, ownerId))).limit(1);
     return row ?? null;
   }, null);
 }

@@ -4,6 +4,7 @@ import { ArrowLeft, LayoutTemplate } from "lucide-react";
 import { createInitiative } from "@/lib/actions";
 import { listAreas } from "@/lib/queries";
 import { getTemplate, listTemplates } from "@/lib/templates";
+import { requireUser } from "@/lib/auth";
 import { InitiativeForm } from "@/components/initiative-form";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -14,10 +15,11 @@ export const dynamic = "force-dynamic";
 export default async function NewInitiativePage({ searchParams }: PageProps<"/initiatives/new">) {
   const sp = await searchParams;
   const templateId = typeof sp.template === "string" ? sp.template : undefined;
+  const user = await requireUser();
   const [areas, templates, template] = await Promise.all([
-    listAreas(),
-    listTemplates(),
-    templateId && /^[0-9a-f-]{36}$/i.test(templateId) ? getTemplate(templateId) : Promise.resolve(null),
+    listAreas(user.id),
+    listTemplates(user.id),
+    templateId && /^[0-9a-f-]{36}$/i.test(templateId) ? getTemplate(user.id, templateId) : Promise.resolve(null),
   ]);
 
   return (

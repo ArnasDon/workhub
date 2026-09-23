@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Layers, Columns3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAreaRollups } from "@/lib/queries";
+import { requireUser } from "@/lib/auth";
 import { STATUSES, STATUS_LABEL, STATUS_STYLE } from "@/lib/constants";
 import { relativeDays } from "@/lib/format";
 import { EmptyState } from "@/components/empty-state";
@@ -15,7 +16,8 @@ export const dynamic = "force-dynamic";
 
 export default async function AreasPage() {
   const now = new Date();
-  const rollups = await getAreaRollups(now);
+  const user = await requireUser();
+  const rollups = await getAreaRollups(user.id, now);
 
   if (rollups.length === 0) {
     return <EmptyState icon={Layers} title="No areas yet" description="Give initiatives an area (e.g. “Ads Integrations”) and this page shows how each area is doing." />;

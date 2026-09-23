@@ -2,7 +2,7 @@
 
 A personal work tracker shaped around **initiatives with a running log**, not tickets. One dashboard shows everything in flight and how stale it is; every initiative keeps an append-only trail of what happened, what you decided, and what's next.
 
-Single-user. Next.js 16 (App Router) · TypeScript · Tailwind 4 · shadcn/ui (Radix) · Drizzle · Supabase Postgres + Auth.
+Multi-user (every row belongs to a Supabase Auth account) or invite-only with an allowlist. Next.js 16 (App Router) · TypeScript · Tailwind 4 · shadcn/ui (Radix) · Drizzle · Supabase Postgres + Auth.
 
 ## What's in v1
 
@@ -87,10 +87,26 @@ then hand that file to the Hostinger deploy tool (or hPanel's Node.js upload). B
 
 Vercel works too with the first three variables plus `ALLOWED_EMAIL`; no config changes needed.
 
+## Running it for other people
+
+WorkHub is multi-tenant: every initiative, template and everything under them belongs to the account that created it, and every query and action is scoped to the signed-in user. To open it up:
+
+1. **Leave `ALLOWED_EMAIL` unset** (or set it to a comma-separated list to stay invite-only).
+2. **Supabase → Authentication → Providers → Email**: turn **on** "Confirm email" so strangers cannot register with someone else's address.
+3. **Supabase → Authentication → SMTP**: configure your own SMTP provider. Supabase's built-in sender is rate-limited to a few emails per hour and is meant for development only. Confirmation and password-reset mails go through it.
+4. **Supabase → Authentication → URL Configuration**: Site URL and `https://<domain>/auth/callback` in Redirect URLs.
+5. Optionally set `SUPABASE_SERVICE_ROLE_KEY` so "Delete my account" also removes the auth user. Without it the data is deleted and the user signed out, and you remove the auth user from the Supabase dashboard.
+6. Edit the bracketed parts of `app/privacy/page.tsx` (where the data lives, who operates it). It is linked from the sign-in page and the Account page.
+7. Run the migrations through `0010_multi_user.sql`. It backfills all existing rows to the **earliest** Supabase Auth account, which is you if you were the only user.
+
+Users get: sign-up with email confirmation, password reset, an **Account** page (change password, export everything, delete account and all data), and a privacy note.
+
+Capacity: the app is a single Node process talking to Supabase Postgres; for a team-sized audience the free Supabase tier is fine. Rate limits on auth actions are per process.
+
 ## Security model
 
-- **One user.** Sign-in and registration refuse any address not in `ALLOWED_EMAIL`, checked in the request proxy *and* in every server action (`requireUser()`).
-- **Database access** goes through `DATABASE_URL` server-side only. Every table has RLS enabled with no policies, so Supabase's public REST API exposes nothing even with the anon key.
+- **Tenant isolation.** Every query takes the signed-in user's id and every action verifies ownership before writing (`lib/queries.ts`, `lib/actions.ts`); `npm run test:db` includes a cross-tenant isolation test. With `ALLOWED_EMAIL` set, sign-in and registration are additionally refused for other addresses, in the proxy *and* in every action.
+- **Database access** goes through `DATABASE_URL` server-side only. Every table has RLS enabled; per-user policies (`owner_id = auth.uid()`) cover the Supabase REST API as a second layer.
 - **Session cookies are HttpOnly**, `SameSite=Lax`, `Secure` in production. The app has no browser-side Supabase client, so page JavaScript never touches tokens.
 - **Content Security Policy** with a per-request nonce (`script-src 'self' 'nonce-…' 'strict-dynamic'`), plus `frame-ancestors 'none'`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, HSTS on https, and `X-Robots-Tag: noindex` (also `robots.txt` disallow). Set in `lib/security-headers.ts`, applied by the proxy.
 - **Auth actions are rate-limited** per IP (10 sign-in attempts / 15 min; 5 sign-ups and 5 reset requests / hour) in addition to Supabase's own limits.
@@ -131,6 +147,8 @@ app/
     initiatives/new      create form
     initiatives/[id]     detail: metadata, status, log form, timeline
   login/                 sign in / create account / reset password
+  privacy/               privacy note (public; edit the bracketed parts)
+  account/               email, change password, export, delete account + data
   account/password       set a new password (reset landing + change)
   auth/callback          exchanges email links (confirm, reset) for a session
   auth/signout           POST → sign out

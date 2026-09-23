@@ -13,10 +13,10 @@ export const dynamic = "force-dynamic";
  * CSV defaults to log entries joined with their initiative; table=initiatives gives one row per initiative.
  */
 export async function GET(request: NextRequest) {
-  await requireUser();
+  const user = await requireUser();
   const requested = request.nextUrl.searchParams.get("format");
   const fmt = requested === "md" || requested === "csv" ? requested : "json";
-  const data = await exportAll();
+  const data = await exportAll(user.id);
   const stamp = format(new Date(), "yyyy-MM-dd-HHmm");
 
   if (fmt === "csv") {

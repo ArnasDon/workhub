@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { CalendarRange, CheckCircle2, MoonStar, Sparkles, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getDigest } from "@/lib/queries";
+import { requireUser } from "@/lib/auth";
 import { digestRangeLabel, digestToMarkdown } from "@/lib/digest";
 import { relativeDays, waitingLabel } from "@/lib/format";
 import { CopyButton } from "@/components/copy-button";
@@ -22,7 +23,8 @@ export default async function DigestPage({ searchParams }: PageProps<"/digest">)
   const sp = await searchParams;
   const requested = Number(sp.days);
   const days = (RANGES as readonly number[]).includes(requested) ? requested : 7;
-  const digest = await getDigest(days);
+  const user = await requireUser();
+  const digest = await getDigest(user.id, days);
   const markdown = digestToMarkdown(digest);
   const empty = digest.groups.length === 0 && digest.completed.length === 0 && digest.created.length === 0;
 

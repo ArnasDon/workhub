@@ -3,6 +3,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { Gavel } from "lucide-react";
 import { listDecisions, type DecisionEntry } from "@/lib/queries";
+import { requireUser } from "@/lib/auth";
 import { EmptyState } from "@/components/empty-state";
 import { Markdown } from "@/components/markdown";
 import { StatusBadge } from "@/components/status-badge";
@@ -12,7 +13,8 @@ export const metadata: Metadata = { title: "Decisions" };
 export const dynamic = "force-dynamic";
 
 export default async function DecisionsPage() {
-  const decisions = await listDecisions();
+  const user = await requireUser();
+  const decisions = await listDecisions(user.id);
 
   if (decisions.length === 0) {
     return (

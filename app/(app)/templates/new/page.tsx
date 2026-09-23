@@ -3,12 +3,14 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createTemplate } from "@/lib/actions";
 import { listAreas } from "@/lib/queries";
+import { requireUser } from "@/lib/auth";
 import { TemplateForm } from "@/components/template-form";
 
 export const metadata: Metadata = { title: "New template" };
 
 export default async function NewTemplatePage() {
-  const areas = await listAreas();
+  const user = await requireUser();
+  const areas = await listAreas(user.id);
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>

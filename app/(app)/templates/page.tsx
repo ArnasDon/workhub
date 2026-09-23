@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LayoutTemplate, Plus } from "lucide-react";
 import { listTemplates } from "@/lib/templates";
+import { requireUser } from "@/lib/auth";
 import { PRIORITY_LABEL, STATUS_LABEL } from "@/lib/constants";
 import { plainText } from "@/lib/plain-text";
 import { EmptyState } from "@/components/empty-state";
@@ -12,7 +13,8 @@ export const metadata: Metadata = { title: "Templates" };
 export const dynamic = "force-dynamic";
 
 export default async function TemplatesPage() {
-  const list = await listTemplates();
+  const user = await requireUser();
+  const list = await listTemplates(user.id);
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

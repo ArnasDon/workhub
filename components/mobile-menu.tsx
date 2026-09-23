@@ -106,9 +106,9 @@ export function MobileMenu() {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/account/password">
+          <Link href="/account">
             <KeyRound aria-hidden />
-            Change password
+            Account
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

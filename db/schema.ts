@@ -37,6 +37,8 @@ export const initiatives = pgTable(
   "initiatives",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** Supabase Auth user id. Every query and action is scoped to it. */
+    ownerId: uuid("owner_id").notNull(),
     title: text("title").notNull(),
     /** Markdown. The "what and why" of the initiative; the log holds what happened. */
     description: text("description").notNull().default(""),
@@ -61,6 +63,7 @@ export const initiatives = pgTable(
       .defaultNow(),
   },
   (t) => [
+    index("initiatives_owner_status_idx").on(t.ownerId, t.status),
     index("initiatives_status_idx").on(t.status),
     index("initiatives_area_idx").on(t.area),
     index("initiatives_updated_at_idx").on(t.updatedAt),
@@ -181,8 +184,11 @@ export const tasksRelations = relations(tasks, ({ one }) => ({
 }));
 
 /** Reusable starting point for an initiative: description skeleton, defaults, and a to-do list. */
-export const templates = pgTable("templates", {
+export const templates = pgTable(
+  "templates",
+  {
   id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: uuid("owner_id").notNull(),
   name: text("name").notNull(),
   description: text("description").notNull().default(""),
   area: text("area").notNull().default(""),
@@ -194,6 +200,8 @@ export const templates = pgTable("templates", {
   links: jsonb("links").$type<Link[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
-});
+  },
+  (t) => [index("templates_owner_idx").on(t.ownerId)],
+);
 
 export type Template = typeof templates.$inferSelect;

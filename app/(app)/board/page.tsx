@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { FolderKanban, Plus, X } from "lucide-react";
 import { listAreas, listInitiatives } from "@/lib/queries";
+import { requireUser } from "@/lib/auth";
 import { KanbanBoard } from "@/components/kanban-board";
 import { EmptyState } from "@/components/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +16,8 @@ export default async function BoardPage({ searchParams }: PageProps<"/board">) {
   const sp = await searchParams;
   const area = typeof sp.area === "string" && sp.area ? sp.area : undefined;
   const now = new Date();
-  const [items, areas] = await Promise.all([listInitiatives({ area, sort: "activity" }), listAreas()]);
+  const user = await requireUser();
+  const [items, areas] = await Promise.all([listInitiatives(user.id, { area, sort: "activity" }), listAreas(user.id)]);
 
   if (items.length === 0 && !area) {
     return (

@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { CalendarDays, CalendarOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { listInitiatives, type InitiativeWithActivity } from "@/lib/queries";
+import { requireUser } from "@/lib/auth";
 import { PRIORITY_DOT, PRIORITY_LABEL } from "@/lib/constants";
 import { daysUntil, dueLabel } from "@/lib/format";
 import { EmptyState } from "@/components/empty-state";
@@ -19,7 +20,8 @@ type Dated = InitiativeWithActivity & { targetDate: string; days: number };
 
 export default async function TimelinePage() {
   const now = new Date();
-  const items = await listInitiatives({ includeArchived: false, sort: "target" });
+  const user = await requireUser();
+  const items = await listInitiatives(user.id, { includeArchived: false, sort: "target" });
   const dated: Dated[] = items
     .filter((i): i is InitiativeWithActivity & { targetDate: string } => Boolean(i.targetDate))
     .map((i) => ({ ...i, days: daysUntil(i.targetDate, now) }))

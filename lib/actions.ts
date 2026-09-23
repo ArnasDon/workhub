@@ -1,6 +1,6 @@
 "use server";
 
-import { eq, max, sql } from "drizzle-orm";
+import { and, eq, inArray, max, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
@@ -12,7 +12,7 @@ import { applyBackup, parseBackup, type ImportReport } from "@/lib/import";
 import { STATUS_LABEL } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { isAllowedEmail } from "@/lib/allowed-email";
+import { hasAllowlist, isAllowedEmail } from "@/lib/allowed-email";
 import { clientKey, rateLimit } from "@/lib/rate-limit";
 
 export type ActionState = { ok: boolean; error?: string; fieldErrors?: Record<string, string> };
@@ -63,6 +63,15 @@ function parseLinks(raw: FormDataEntryValue | null): unknown {
   }
 }
 
+/** Where-clause for "this initiative belongs to the signed-in user". */
+const owned = (ownerId: string, id: string) => and(eq(initiatives.id, id), eq(initiatives.ownerId, ownerId));
+
+/** True when `initiativeId` belongs to `ownerId`. Every child mutation goes through this. */
+async function ownsInitiative(ownerId: string, initiativeId: string): Promise<boolean> {
+  const [row] = await getDb().select({ id: initiatives.id }).from(initiatives).where(owned(ownerId, initiativeId)).limit(1);
+  return Boolean(row);
+}
+
 function fieldErrors(err: z.ZodError): Record<string, string> {
   const out: Record<string, string> = {};
   for (const issue of err.issues) {
@@ -87,7 +96,7 @@ function readInitiativeForm(formData: FormData) {
 }
 
 export async function createInitiative(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireUser();
+  const user = await requireUser();
   const parsed = readInitiativeForm(formData);
   if (!parsed.success) return { ok: false, fieldErrors: fieldErrors(parsed.error) };
   const db = getDb();
@@ -96,6 +105,7 @@ export async function createInitiative(_prev: ActionState, formData: FormData): 
     .insert(initiatives)
     .values({
       ...parsed.data,
+      ownerId: user.id,
       links: parsed.data.links,
       waitingOn: creatingWaiting ? String(formData.get("waitingOn") ?? "").trim().slice(0, 80) : "",
       waitingSince: creatingWaiting ? new Date() : null,
@@ -107,7 +117,7 @@ export async function createInitiative(_prev: ActionState, formData: FormData): 
   }
   const templateId = String(formData.get("templateId") ?? "");
   if (z.string().uuid().safeParse(templateId).success) {
-    const template = await getTemplate(templateId);
+    const template = await getTemplate(user.id, templateId);
     if (template) {
       const n = await applyTemplateTasks(db, template, row.id);
       await db.insert(logEntries).values({ initiativeId: row.id, kind: "status", body: `Created from template “${template.name}”${n ? ` with ${n} to-dos` : ""}` });
@@ -148,44 +158,45 @@ function readTemplateForm(formData: FormData) {
 }
 
 export async function createTemplate(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireUser();
+  const user = await requireUser();
   const parsed = readTemplateForm(formData);
   if (!parsed.success) return { ok: false, fieldErrors: fieldErrors(parsed.error) };
   const db = getDb();
-  const [row] = await db.insert(templates).values(parsed.data).returning({ id: templates.id });
+  const [row] = await db.insert(templates).values({ ...parsed.data, ownerId: user.id }).returning({ id: templates.id });
   revalidatePath("/templates");
   redirect(`/templates/${row.id}`);
 }
 
 export async function updateTemplate(id: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireUser();
+  const user = await requireUser();
   const parsed = readTemplateForm(formData);
   if (!parsed.success) return { ok: false, fieldErrors: fieldErrors(parsed.error) };
   const db = getDb();
-  await db.update(templates).set({ ...parsed.data, updatedAt: new Date() }).where(eq(templates.id, id));
+  await db.update(templates).set({ ...parsed.data, updatedAt: new Date() }).where(and(eq(templates.id, id), eq(templates.ownerId, user.id)));
   revalidatePath("/templates");
   revalidatePath(`/templates/${id}`);
   return { ok: true };
 }
 
 export async function deleteTemplate(id: string): Promise<never> {
-  await requireUser();
+  const user = await requireUser();
   const db = getDb();
-  await db.delete(templates).where(eq(templates.id, id));
+  await db.delete(templates).where(and(eq(templates.id, id), eq(templates.ownerId, user.id)));
   revalidatePath("/templates");
   redirect("/templates");
 }
 
 /** Snapshot an initiative's shape (not its log) as a reusable template. */
 export async function createTemplateFromInitiative(initiativeId: string): Promise<never> {
-  await requireUser();
+  const user = await requireUser();
   const db = getDb();
-  const [i] = await db.select().from(initiatives).where(eq(initiatives.id, initiativeId));
+  const [i] = await db.select().from(initiatives).where(owned(user.id, initiativeId));
   if (!i) redirect("/");
   const todo = await db.select({ title: tasks.title }).from(tasks).where(eq(tasks.initiativeId, initiativeId)).orderBy(tasks.position);
   const [row] = await db
     .insert(templates)
     .values({
+      ownerId: user.id,
       name: i.title,
       description: i.description,
       area: i.area,
@@ -205,15 +216,15 @@ export async function updateInitiative(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireUser();
+  const user = await requireUser();
   const parsed = readInitiativeForm(formData);
   if (!parsed.success) return { ok: false, fieldErrors: fieldErrors(parsed.error) };
   const db = getDb();
-  const [before] = await db.select({ status: initiatives.status }).from(initiatives).where(eq(initiatives.id, id));
+  const [before] = await db.select({ status: initiatives.status }).from(initiatives).where(owned(user.id, id));
   if (!before) return { ok: false, error: "Initiative not found" };
   const waiting = parsed.data.status === "waiting";
   const waitingOn = waiting ? String(formData.get("waitingOn") ?? "").trim().slice(0, 80) : "";
-  const [prev] = await db.select({ waitingSince: initiatives.waitingSince }).from(initiatives).where(eq(initiatives.id, id));
+  const [prev] = await db.select({ waitingSince: initiatives.waitingSince }).from(initiatives).where(owned(user.id, id));
   await db
     .update(initiatives)
     .set({
@@ -223,7 +234,7 @@ export async function updateInitiative(
       waitingSince: waiting ? (before.status === "waiting" ? prev?.waitingSince ?? new Date() : new Date()) : null,
       updatedAt: new Date(),
     })
-    .where(eq(initiatives.id, id));
+    .where(owned(user.id, id));
   if (before.status !== parsed.data.status) {
     await db.insert(logEntries).values({
       initiativeId: id,
@@ -246,7 +257,7 @@ const statusSchema = z.object({
 
 /** Change status from anywhere; records the transition as a log entry so the trail stays complete. */
 export async function setStatus(input: { id: string; status: string; note?: string; waitingOn?: string }): Promise<ActionState> {
-  await requireUser();
+  const user = await requireUser();
   const parsed = statusSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid status" };
   const { id, status, note, waitingOn } = parsed.data;
@@ -254,7 +265,7 @@ export async function setStatus(input: { id: string; status: string; note?: stri
   const [before] = await db
     .select({ status: initiatives.status, waitingOn: initiatives.waitingOn, waitingSince: initiatives.waitingSince })
     .from(initiatives)
-    .where(eq(initiatives.id, id));
+    .where(owned(user.id, id));
   if (!before) return { ok: false, error: "Initiative not found" };
   if (before.status === status && !note && waitingOn === undefined) return { ok: true };
   const now = new Date();
@@ -264,7 +275,7 @@ export async function setStatus(input: { id: string; status: string; note?: stri
   await db
     .update(initiatives)
     .set({ status, waitingOn: nextWaitingOn, waitingSince: nextWaitingSince, updatedAt: now })
-    .where(eq(initiatives.id, id));
+    .where(owned(user.id, id));
   const who = waiting && nextWaitingOn ? ` (${nextWaitingOn})` : "";
   const transition =
     before.status === status ? "" : `Status: ${STATUS_LABEL[before.status]} → ${STATUS_LABEL[status]}${who}`;
@@ -276,12 +287,12 @@ export async function setStatus(input: { id: string; status: string; note?: stri
 }
 
 export async function togglePinned(id: string): Promise<ActionState> {
-  await requireUser();
+  const user = await requireUser();
   const db = getDb();
   await db
     .update(initiatives)
     .set({ pinned: sql`not ${initiatives.pinned}` })
-    .where(eq(initiatives.id, id));
+    .where(owned(user.id, id));
   revalidatePath("/");
   revalidatePath(`/initiatives/${id}`);
   return { ok: true };
@@ -289,9 +300,9 @@ export async function togglePinned(id: string): Promise<ActionState> {
 
 /** Hard delete. Only offered in the UI for archived initiatives, behind a confirmation. */
 export async function deleteInitiative(id: string): Promise<never> {
-  await requireUser();
+  const user = await requireUser();
   const db = getDb();
-  await db.delete(initiatives).where(eq(initiatives.id, id));
+  await db.delete(initiatives).where(owned(user.id, id));
   revalidatePath("/");
   redirect("/");
 }
@@ -303,12 +314,11 @@ const entrySchema = z.object({
 });
 
 export async function addLogEntry(input: { initiativeId: string; body: string; kind?: string }): Promise<ActionState> {
-  await requireUser();
+  const user = await requireUser();
   const parsed = entrySchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid entry" };
   const db = getDb();
-  const [exists] = await db.select({ id: initiatives.id }).from(initiatives).where(eq(initiatives.id, parsed.data.initiativeId));
-  if (!exists) return { ok: false, error: "Initiative not found" };
+  if (!(await ownsInitiative(user.id, parsed.data.initiativeId))) return { ok: false, error: "Initiative not found" };
   await db.insert(logEntries).values(parsed.data);
   await db.update(initiatives).set({ updatedAt: new Date() }).where(eq(initiatives.id, parsed.data.initiativeId));
   revalidatePath("/");
@@ -320,7 +330,7 @@ export async function addLogEntry(input: { initiativeId: string; body: string; k
 
 /** Hide from stale nudges until a date (YYYY-MM-DD), or clear with null. Logged so the trail explains the quiet period. */
 export async function setSnooze(input: { id: string; until: string | null }): Promise<ActionState> {
-  await requireUser();
+  const user = await requireUser();
   const parsed = z
     .object({ id: z.string().uuid(), until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable() })
     .safeParse(input);
@@ -329,7 +339,7 @@ export async function setSnooze(input: { id: string; until: string | null }): Pr
   const [row] = await db
     .update(initiatives)
     .set({ snoozedUntil: parsed.data.until })
-    .where(eq(initiatives.id, parsed.data.id))
+    .where(owned(user.id, parsed.data.id))
     .returning({ id: initiatives.id });
   if (!row) return { ok: false, error: "Initiative not found" };
   if (parsed.data.until) {
@@ -348,12 +358,13 @@ const relationSchema = z
 
 /** Link two initiatives. Logged on the initiative the link was added from. */
 export async function addRelation(input: { fromId: string; toId: string; kind: string }): Promise<ActionState> {
-  await requireUser();
+  const user = await requireUser();
   const parsed = relationSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid relation" };
   const { fromId, toId, kind } = parsed.data;
   const db = getDb();
-  const [target] = await db.select({ title: initiatives.title }).from(initiatives).where(eq(initiatives.id, toId));
+  if (!(await ownsInitiative(user.id, fromId))) return { ok: false, error: "Initiative not found" };
+  const [target] = await db.select({ title: initiatives.title }).from(initiatives).where(owned(user.id, toId));
   if (!target) return { ok: false, error: "Initiative not found" };
   const inserted = await db
     .insert(initiativeRelations)
@@ -373,12 +384,16 @@ export async function addRelation(input: { fromId: string; toId: string; kind: s
 }
 
 export async function removeRelation(id: string): Promise<ActionState> {
-  await requireUser();
+  const user = await requireUser();
   if (!z.string().uuid().safeParse(id).success) return { ok: false, error: "Invalid relation" };
   const db = getDb();
-  const [rel] = await db.delete(initiativeRelations).where(eq(initiativeRelations.id, id)).returning();
+  const mine = db.select({ id: initiatives.id }).from(initiatives).where(eq(initiatives.ownerId, user.id));
+  const [rel] = await db
+    .delete(initiativeRelations)
+    .where(and(eq(initiativeRelations.id, id), inArray(initiativeRelations.fromId, mine)))
+    .returning();
   if (!rel) return { ok: false, error: "Link not found" };
-  const [target] = await db.select({ title: initiatives.title }).from(initiatives).where(eq(initiatives.id, rel.toId));
+  const [target] = await db.select({ title: initiatives.title }).from(initiatives).where(owned(user.id, rel.toId));
   await db.insert(logEntries).values({
     initiativeId: rel.fromId,
     body: rel.kind === "blocked_by" ? `No longer blocked by “${target?.title ?? "an initiative"}”` : `Unlinked from “${target?.title ?? "an initiative"}”`,
@@ -394,9 +409,10 @@ export async function removeRelation(id: string): Promise<ActionState> {
 const taskTitle = z.string().trim().min(1, "Write the to-do first").max(300);
 
 export async function addTask(input: { initiativeId: string; title: string }): Promise<ActionState & { id?: string }> {
-  await requireUser();
+  const user = await requireUser();
   const parsed = z.object({ initiativeId: z.string().uuid(), title: taskTitle }).safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid to-do" };
+  if (!(await ownsInitiative(user.id, parsed.data.initiativeId))) return { ok: false, error: "Initiative not found" };
   const db = getDb();
   const [{ next }] = await db
     .select({ next: sql<number>`coalesce(${max(tasks.position)}, -1) + 1` })
@@ -411,15 +427,17 @@ export async function addTask(input: { initiativeId: string; title: string }): P
   return { ok: true, id: row.id };
 }
 
+const ownedTasks = (ownerId: string) => inArray(tasks.initiativeId, getDb().select({ id: initiatives.id }).from(initiatives).where(eq(initiatives.ownerId, ownerId)));
+
 export async function updateTask(input: { id: string; title: string }): Promise<ActionState> {
-  await requireUser();
+  const user = await requireUser();
   const parsed = z.object({ id: z.string().uuid(), title: taskTitle }).safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid to-do" };
   const db = getDb();
   const [row] = await db
     .update(tasks)
     .set({ title: parsed.data.title, updatedAt: new Date() })
-    .where(eq(tasks.id, parsed.data.id))
+    .where(and(eq(tasks.id, parsed.data.id), ownedTasks(user.id)))
     .returning({ initiativeId: tasks.initiativeId });
   if (!row) return { ok: false, error: "To-do not found" };
   revalidatePath(`/initiatives/${row.initiativeId}`);
@@ -428,14 +446,14 @@ export async function updateTask(input: { id: string; title: string }): Promise<
 
 /** Check or uncheck. Completing a to-do is logged; unchecking is not. */
 export async function toggleTask(input: { id: string; done: boolean }): Promise<ActionState> {
-  await requireUser();
+  const user = await requireUser();
   const parsed = z.object({ id: z.string().uuid(), done: z.boolean() }).safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid to-do" };
   const db = getDb();
   const [row] = await db
     .update(tasks)
     .set({ done: parsed.data.done, doneAt: parsed.data.done ? new Date() : null, updatedAt: new Date() })
-    .where(eq(tasks.id, parsed.data.id))
+    .where(and(eq(tasks.id, parsed.data.id), ownedTasks(user.id)))
     .returning({ initiativeId: tasks.initiativeId, title: tasks.title });
   if (!row) return { ok: false, error: "To-do not found" };
   if (parsed.data.done) {
@@ -448,10 +466,10 @@ export async function toggleTask(input: { id: string; done: boolean }): Promise<
 }
 
 export async function deleteTask(id: string): Promise<ActionState> {
-  await requireUser();
+  const user = await requireUser();
   if (!z.string().uuid().safeParse(id).success) return { ok: false, error: "Invalid to-do" };
   const db = getDb();
-  const [row] = await db.delete(tasks).where(eq(tasks.id, id)).returning({ initiativeId: tasks.initiativeId });
+  const [row] = await db.delete(tasks).where(and(eq(tasks.id, id), ownedTasks(user.id))).returning({ initiativeId: tasks.initiativeId });
   if (!row) return { ok: false, error: "To-do not found" };
   revalidatePath("/");
   revalidatePath(`/initiatives/${row.initiativeId}`);
@@ -464,7 +482,7 @@ export type ImportState = ActionState & { report?: ImportReport; summary?: { ini
 
 /** Restore a JSON export. Existing ids are skipped, so this merges rather than overwrites. */
 export async function importBackup(_prev: ImportState, formData: FormData): Promise<ImportState> {
-  await requireUser();
+  const user = await requireUser();
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Choose the JSON file exported from WorkHub." };
   if (file.size > 25 * 1024 * 1024) return { ok: false, error: "That file is larger than 25 MB." };
@@ -473,9 +491,37 @@ export async function importBackup(_prev: ImportState, formData: FormData): Prom
   const b = parsed.backup;
   const summary = { initiatives: b.initiatives.length, logEntries: b.logEntries.length, tasks: b.tasks.length, relations: b.relations.length, templates: b.templates.length };
   if (formData.get("mode") === "preview") return { ok: true, summary };
-  const report = await applyBackup(getDb(), b);
+  const report = await applyBackup(getDb(), b, user.id);
   revalidatePath("/");
   return { ok: true, report, summary };
+}
+
+// ── Account ─────────────────────────────────────────────────────────────────
+
+/**
+ * Delete every row this user owns (initiatives cascade to entries, to-dos,
+ * links; templates), then the auth account when a service-role key is
+ * configured, then sign out. Irreversible; the UI asks for the email to confirm.
+ */
+export async function deleteAccount(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const user = await requireUser();
+  const typed = String(formData.get("confirm") ?? "").trim().toLowerCase();
+  if (!user.email || typed !== user.email.toLowerCase()) return { ok: false, error: "Type your email address exactly to confirm." };
+  const db = getDb();
+  await db.delete(initiatives).where(eq(initiatives.ownerId, user.id));
+  await db.delete(templates).where(eq(templates.ownerId, user.id));
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  let accountRemoved = false;
+  if (serviceKey && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    const { createClient: createAdmin } = await import("@supabase/supabase-js");
+    const admin = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { error } = await admin.auth.admin.deleteUser(user.id);
+    accountRemoved = !error;
+    if (error) console.error("[workhub] could not delete auth user:", error.message);
+  }
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  redirect(accountRemoved ? "/login?deleted=1" : "/login?deleted=data");
 }
 
 // ── Auth ────────────────────────────────────────────────────────────────────
@@ -502,7 +548,7 @@ export async function signInWithPassword(_prev: ActionState, formData: FormData)
   if (wait) return { ok: false, error: wait };
   const parsed = credentialsSchema.safeParse({ email: formData.get("email"), password: formData.get("password") });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
-  if (!isAllowedEmail(parsed.data.email)) return { ok: false, error: "That address is not allowed to sign in to this WorkHub." };
+  if (!isAllowedEmail(parsed.data.email)) return { ok: false, error: hasAllowlist() ? "That address is not allowed to sign in here." : "Wrong email or password." };
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) {
@@ -518,7 +564,7 @@ export async function signUpWithPassword(_prev: ActionState, formData: FormData)
   const parsed = credentialsSchema.safeParse({ email: formData.get("email"), password: formData.get("password") });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
   if (String(formData.get("confirm") ?? "") !== parsed.data.password) return { ok: false, error: "Passwords don't match." };
-  if (!isAllowedEmail(parsed.data.email)) return { ok: false, error: "Only the configured address can create an account here." };
+  if (!isAllowedEmail(parsed.data.email)) return { ok: false, error: hasAllowlist() ? "Registration is limited to invited addresses." : "Enter a valid email." };
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     ...parsed.data,

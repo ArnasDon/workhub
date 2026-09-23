@@ -12,3 +12,4 @@
 - Auth is email + password (not magic link). Registration and sign-in both refuse any address not in `ALLOWED_EMAIL`; the proxy and `requireUser()` enforce the same check on every request.
 - To verify UI end to end without Supabase: `npm run dev:local` (PGlite + mock auth at scripts/mock-auth.mjs; sign in as local@workhub.dev, any password). Use it before opening a PR that touches authenticated pages.
 - Schema changes: never touch the live database. Generate a new file under `drizzle/` and call it out in the PR; the owner applies it by hand.
+- Multi-tenant since migration 0010: every query takes `ownerId` first and every action calls `requireUser()` and checks ownership (`owned()` / `ownsInitiative()`). Never add a query or action that touches initiatives, entries, tasks, relations or templates without scoping it; extend the isolation block in `scripts/smoke-db.mts` when you add one.

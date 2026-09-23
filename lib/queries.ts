@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, ilike, max, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, max, ne, notInArray, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
 import { initiativeRelations, initiatives, logEntries, tasks, templates, type Initiative, type LogEntry, type RelationKind, type Task } from "@/db/schema";
@@ -19,13 +19,18 @@ export type InitiativeWithActivity = Initiative & {
   taskDone: number;
 };
 
+/** Subquery of initiative ids owned by `ownerId`; used to scope child tables. */
+function ownedIds(ownerId: string) {
+  return getDb().select({ id: initiatives.id }).from(initiatives).where(eq(initiatives.ownerId, ownerId));
+}
+
 export type ListOptions = {
   includeArchived?: boolean;
   area?: string;
   sort?: Sort;
 };
 
-export async function listInitiatives(opts: ListOptions = {}): Promise<InitiativeWithActivity[]> {
+export async function listInitiatives(ownerId: string, opts: ListOptions = {}): Promise<InitiativeWithActivity[]> {
   const db = getDb();
 
   const activity = db
@@ -39,6 +44,7 @@ export async function listInitiatives(opts: ListOptions = {}): Promise<Initiativ
     .as("activity");
 
   const where = and(
+    eq(initiatives.ownerId, ownerId),
     opts.includeArchived ? undefined : ne(initiatives.status, "archived"),
     opts.area ? eq(initiatives.area, opts.area) : undefined,
   );
@@ -61,9 +67,10 @@ export async function listInitiatives(opts: ListOptions = {}): Promise<Initiativ
       createdAt: logEntries.createdAt,
     })
     .from(logEntries)
+    .where(inArray(logEntries.initiativeId, ownedIds(ownerId)))
     .orderBy(logEntries.initiativeId, desc(logEntries.createdAt));
   const latestById = new Map(latest.map((l) => [l.initiativeId, l]));
-  const [blockers, progress] = await Promise.all([openBlockerCounts(), taskProgress()]);
+  const [blockers, progress] = await Promise.all([openBlockerCounts(ownerId), taskProgress(ownerId)]);
 
   const result: InitiativeWithActivity[] = rows.map((r) => {
     const lastEntryAt = r.lastEntryAt ? new Date(r.lastEntryAt) : null;
@@ -100,7 +107,7 @@ const tolerateMissingRelations = <T,>(fn: () => Promise<T>, fallback: T) =>
   tolerateMissingTable("0002_initiative_relations.sql", fn, fallback);
 const tolerateMissingTasks = <T,>(fn: () => Promise<T>, fallback: T) => tolerateMissingTable("0003_tasks.sql", fn, fallback);
 
-async function taskProgress(): Promise<Map<string, { total: number; done: number }>> {
+async function taskProgress(ownerId: string): Promise<Map<string, { total: number; done: number }>> {
   const db = getDb();
   return tolerateMissingTasks(async () => {
     const rows = await db
@@ -110,6 +117,7 @@ async function taskProgress(): Promise<Map<string, { total: number; done: number
         done: sql<number>`count(*) filter (where ${tasks.done})`,
       })
       .from(tasks)
+      .where(inArray(tasks.initiativeId, ownedIds(ownerId)))
       .groupBy(tasks.initiativeId);
     return new Map(rows.map((r) => [r.initiativeId, { total: Number(r.total), done: Number(r.done) }]));
   }, new Map());
@@ -118,10 +126,13 @@ async function taskProgress(): Promise<Map<string, { total: number; done: number
 // ── Tasks ────────────────────────────────────────────────────────────────────
 
 /** Open tasks in position order, then completed ones most recent first. */
-export async function listTasks(initiativeId: string): Promise<Task[]> {
+export async function listTasks(ownerId: string, initiativeId: string): Promise<Task[]> {
   const db = getDb();
   return tolerateMissingTasks(async () => {
-    const rows = await db.select().from(tasks).where(eq(tasks.initiativeId, initiativeId));
+    const rows = await db
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.initiativeId, initiativeId), inArray(tasks.initiativeId, ownedIds(ownerId))));
     return rows.sort((a, b) => {
       if (a.done !== b.done) return a.done ? 1 : -1;
       if (a.done) return (b.doneAt?.getTime() ?? 0) - (a.doneAt?.getTime() ?? 0);
@@ -130,7 +141,7 @@ export async function listTasks(initiativeId: string): Promise<Task[]> {
   }, []);
 }
 
-async function openBlockerCounts(): Promise<Map<string, number>> {
+async function openBlockerCounts(ownerId: string): Promise<Map<string, number>> {
   const db = getDb();
   return tolerateMissingRelations(async () => {
     const blocker = alias(initiatives, "blocker");
@@ -138,7 +149,7 @@ async function openBlockerCounts(): Promise<Map<string, number>> {
       .select({ fromId: initiativeRelations.fromId, n: count() })
       .from(initiativeRelations)
       .innerJoin(blocker, eq(blocker.id, initiativeRelations.toId))
-      .where(and(eq(initiativeRelations.kind, "blocked_by"), notInArray(blocker.status, ["done", "archived"])))
+      .where(and(eq(blocker.ownerId, ownerId), eq(initiativeRelations.kind, "blocked_by"), notInArray(blocker.status, ["done", "archived"])))
       .groupBy(initiativeRelations.fromId);
     return new Map(rows.map((r) => [r.fromId, Number(r.n)]));
   }, new Map());
@@ -155,7 +166,7 @@ export type RelationView = {
 };
 
 /** All relations touching `id`, phrased from its point of view. */
-export async function listRelations(id: string): Promise<RelationView[]> {
+export async function listRelations(ownerId: string, id: string): Promise<RelationView[]> {
   const db = getDb();
   return tolerateMissingRelations(async () => {
     const other = alias(initiatives, "other");
@@ -163,12 +174,12 @@ export async function listRelations(id: string): Promise<RelationView[]> {
       .select({ id: initiativeRelations.id, kind: initiativeRelations.kind, otherId: other.id, title: other.title, status: other.status, area: other.area })
       .from(initiativeRelations)
       .innerJoin(other, eq(other.id, initiativeRelations.toId))
-      .where(eq(initiativeRelations.fromId, id));
+      .where(and(eq(initiativeRelations.fromId, id), eq(other.ownerId, ownerId)));
     const incoming = await db
       .select({ id: initiativeRelations.id, kind: initiativeRelations.kind, otherId: other.id, title: other.title, status: other.status, area: other.area })
       .from(initiativeRelations)
       .innerJoin(other, eq(other.id, initiativeRelations.fromId))
-      .where(eq(initiativeRelations.toId, id));
+      .where(and(eq(initiativeRelations.toId, id), eq(other.ownerId, ownerId)));
     const view = (r: (typeof outgoing)[number], direction: RelationView["direction"]): RelationView => ({
       id: r.id,
       kind: r.kind,
@@ -202,33 +213,37 @@ export function sortInitiatives<T extends InitiativeWithActivity>(items: T[], so
   return [...items].sort((a, b) => Number(b.pinned) - Number(a.pinned) || by[sort](a, b));
 }
 
-export async function getInitiative(id: string): Promise<Initiative | null> {
+export async function getInitiative(ownerId: string, id: string): Promise<Initiative | null> {
   const db = getDb();
-  const [row] = await db.select().from(initiatives).where(eq(initiatives.id, id)).limit(1);
+  const [row] = await db
+    .select()
+    .from(initiatives)
+    .where(and(eq(initiatives.id, id), eq(initiatives.ownerId, ownerId)))
+    .limit(1);
   return row ?? null;
 }
 
-export async function listEntries(initiativeId: string): Promise<LogEntry[]> {
+export async function listEntries(ownerId: string, initiativeId: string): Promise<LogEntry[]> {
   const db = getDb();
   return db
     .select()
     .from(logEntries)
-    .where(eq(logEntries.initiativeId, initiativeId))
+    .where(and(eq(logEntries.initiativeId, initiativeId), inArray(logEntries.initiativeId, ownedIds(ownerId))))
     .orderBy(desc(logEntries.createdAt));
 }
 
-export async function listAreas(): Promise<string[]> {
+export async function listAreas(ownerId: string): Promise<string[]> {
   const db = getDb();
   const rows = await db
     .selectDistinct({ area: initiatives.area })
     .from(initiatives)
-    .where(ne(initiatives.area, ""))
+    .where(and(eq(initiatives.ownerId, ownerId), ne(initiatives.area, "")))
     .orderBy(asc(initiatives.area));
   return rows.map((r) => r.area);
 }
 
 /** Minimal list for the command palette. */
-export async function listInitiativeOptions() {
+export async function listInitiativeOptions(ownerId: string) {
   const db = getDb();
   return db
     .select({
@@ -238,7 +253,7 @@ export async function listInitiativeOptions() {
       status: initiatives.status,
     })
     .from(initiatives)
-    .where(ne(initiatives.status, "archived"))
+    .where(and(eq(initiatives.ownerId, ownerId), ne(initiatives.status, "archived")))
     .orderBy(desc(initiatives.pinned), desc(initiatives.updatedAt));
 }
 
@@ -253,7 +268,7 @@ export type SearchResult = {
  * fallback so partial words still hit. Covers initiative titles, areas and
  * descriptions, log entries, and to-do items.
  */
-export async function search(q: string): Promise<SearchResult> {
+export async function search(ownerId: string, q: string): Promise<SearchResult> {
   const db = getDb();
   const term = q.trim();
   if (!term) return { initiatives: [], entries: [], tasks: [] };
@@ -264,16 +279,19 @@ export async function search(q: string): Promise<SearchResult> {
     .select({ id: initiatives.id })
     .from(initiatives)
     .where(
-      or(
-        sql`to_tsvector('english', ${initiatives.title} || ' ' || ${initiatives.area} || ' ' || ${initiatives.description}) @@ ${tsq}`,
-        ilike(initiatives.title, like),
-        ilike(initiatives.area, like),
-        ilike(initiatives.description, like),
+      and(
+        eq(initiatives.ownerId, ownerId),
+        or(
+          sql`to_tsvector('english', ${initiatives.title} || ' ' || ${initiatives.area} || ' ' || ${initiatives.description}) @@ ${tsq}`,
+          ilike(initiatives.title, like),
+          ilike(initiatives.area, like),
+          ilike(initiatives.description, like),
+        ),
       ),
     );
   const ids = new Set(matchedInitiatives.map((r) => r.id));
 
-  const all = await listInitiatives({ includeArchived: true });
+  const all = await listInitiatives(ownerId, { includeArchived: true });
   const hits = all.filter((i) => ids.has(i.id));
 
   const entries = await db
@@ -289,9 +307,9 @@ export async function search(q: string): Promise<SearchResult> {
     .from(logEntries)
     .innerJoin(initiatives, eq(initiatives.id, logEntries.initiativeId))
     .where(
-      or(
-        sql`to_tsvector('english', ${logEntries.body}) @@ ${tsq}`,
-        ilike(logEntries.body, like),
+      and(
+        eq(initiatives.ownerId, ownerId),
+        or(sql`to_tsvector('english', ${logEntries.body}) @@ ${tsq}`, ilike(logEntries.body, like)),
       ),
     )
     .orderBy(desc(logEntries.createdAt))
@@ -314,7 +332,7 @@ export async function search(q: string): Promise<SearchResult> {
         })
         .from(tasks)
         .innerJoin(initiatives, eq(initiatives.id, tasks.initiativeId))
-        .where(or(sql`to_tsvector('english', ${tasks.title}) @@ ${tsq}`, ilike(tasks.title, like)))
+        .where(and(eq(initiatives.ownerId, ownerId), or(sql`to_tsvector('english', ${tasks.title}) @@ ${tsq}`, ilike(tasks.title, like))))
         .orderBy(asc(tasks.done), desc(tasks.updatedAt))
         .limit(100),
     [],
@@ -323,14 +341,15 @@ export async function search(q: string): Promise<SearchResult> {
   return { initiatives: hits, entries, tasks: taskHits };
 }
 
-export async function exportAll() {
+export async function exportAll(ownerId: string) {
   const db = getDb();
+  const mine = ownedIds(ownerId);
   const [inits, entries, taskRows, relationRows, templateRows] = await Promise.all([
-    db.select().from(initiatives).orderBy(asc(initiatives.createdAt)),
-    db.select().from(logEntries).orderBy(asc(logEntries.createdAt)),
-    tolerateMissingTasks(() => db.select().from(tasks).orderBy(asc(tasks.createdAt)), []),
-    tolerateMissingRelations(() => db.select().from(initiativeRelations).orderBy(asc(initiativeRelations.createdAt)), []),
-    tolerateMissingTable("0009_templates.sql", () => db.select().from(templates).orderBy(asc(templates.createdAt)), []),
+    db.select().from(initiatives).where(eq(initiatives.ownerId, ownerId)).orderBy(asc(initiatives.createdAt)),
+    db.select().from(logEntries).where(inArray(logEntries.initiativeId, mine)).orderBy(asc(logEntries.createdAt)),
+    tolerateMissingTasks(() => db.select().from(tasks).where(inArray(tasks.initiativeId, mine)).orderBy(asc(tasks.createdAt)), []),
+    tolerateMissingRelations(() => db.select().from(initiativeRelations).where(inArray(initiativeRelations.fromId, mine)).orderBy(asc(initiativeRelations.createdAt)), []),
+    tolerateMissingTable("0009_templates.sql", () => db.select().from(templates).where(eq(templates.ownerId, ownerId)).orderBy(asc(templates.createdAt)), []),
   ]);
   return {
     format: "workhub-export" as const,
@@ -367,7 +386,7 @@ export type Digest = {
 };
 
 /** Everything that happened in the last `days` days, shaped for a status update. */
-export async function getDigest(days = 7, now = new Date()): Promise<Digest> {
+export async function getDigest(ownerId: string, days = 7, now = new Date()): Promise<Digest> {
   const db = getDb();
   const since = new Date(now.getTime() - days * 86_400_000);
 
@@ -375,7 +394,7 @@ export async function getDigest(days = 7, now = new Date()): Promise<Digest> {
     .select({ entry: logEntries, initiative: initiatives })
     .from(logEntries)
     .innerJoin(initiatives, eq(initiatives.id, logEntries.initiativeId))
-    .where(gte(logEntries.createdAt, since))
+    .where(and(eq(initiatives.ownerId, ownerId), gte(logEntries.createdAt, since)))
     .orderBy(asc(logEntries.createdAt));
 
   const byId = new Map<string, DigestGroup>();
@@ -388,7 +407,7 @@ export async function getDigest(days = 7, now = new Date()): Promise<Digest> {
     (a, b) => b.entries[b.entries.length - 1].createdAt.getTime() - a.entries[a.entries.length - 1].createdAt.getTime(),
   );
 
-  const all = await listInitiatives({ includeArchived: true });
+  const all = await listInitiatives(ownerId, { includeArchived: true });
   const active = new Set<Initiative["status"]>(["in_progress", "blocked", "waiting"]);
   return {
     days,
@@ -437,13 +456,13 @@ export function computeStreak(entryDates: Date[], now = new Date()): Streak {
   return { days: streak, loggedToday, thisWeek, lastEntryAt };
 }
 
-export async function getStreak(now = new Date()): Promise<Streak> {
+export async function getStreak(ownerId: string, now = new Date()): Promise<Streak> {
   const db = getDb();
   const since = new Date(now.getTime() - 120 * 86_400_000);
   const rows = await db
     .select({ createdAt: logEntries.createdAt })
     .from(logEntries)
-    .where(gte(logEntries.createdAt, since));
+    .where(and(gte(logEntries.createdAt, since), inArray(logEntries.initiativeId, ownedIds(ownerId))));
   return computeStreak(rows.map((r) => r.createdAt), now);
 }
 
@@ -452,7 +471,7 @@ export async function getStreak(now = new Date()): Promise<Streak> {
 export type DecisionEntry = LogEntry & { initiativeTitle: string; initiativeStatus: Initiative["status"]; initiativeArea: string };
 
 /** Every entry marked as a decision, newest first. */
-export async function listDecisions(limit = 200): Promise<DecisionEntry[]> {
+export async function listDecisions(ownerId: string, limit = 200): Promise<DecisionEntry[]> {
   const db = getDb();
   return db
     .select({
@@ -467,7 +486,7 @@ export async function listDecisions(limit = 200): Promise<DecisionEntry[]> {
     })
     .from(logEntries)
     .innerJoin(initiatives, eq(initiatives.id, logEntries.initiativeId))
-    .where(eq(logEntries.kind, "decision"))
+    .where(and(eq(initiatives.ownerId, ownerId), eq(logEntries.kind, "decision")))
     .orderBy(desc(logEntries.createdAt))
     .limit(limit);
 }
@@ -495,9 +514,9 @@ export type TodayView = {
 };
 
 /** The one screen to open in the morning: what needs a nudge, who to chase, what's due, and what's on the pinned list. */
-export async function getToday(now = new Date()): Promise<TodayView> {
+export async function getToday(ownerId: string, now = new Date()): Promise<TodayView> {
   const db = getDb();
-  const all = await listInitiatives({ includeArchived: false });
+  const all = await listInitiatives(ownerId, { includeArchived: false });
   const active = all.filter((i) => i.status !== "done");
 
   const overdue = active.filter((i) => i.targetDate && daysUntil(i.targetDate, now) < 0);
@@ -516,7 +535,7 @@ export async function getToday(now = new Date()): Promise<TodayView> {
 
   const pinned = active.filter((i) => i.pinned).slice(0, 6);
   const focus = await Promise.all(
-    pinned.map(async (initiative) => ({ initiative, tasks: (await listTasks(initiative.id)).filter((t) => !t.done).slice(0, 4) })),
+    pinned.map(async (initiative) => ({ initiative, tasks: (await listTasks(ownerId, initiative.id)).filter((t) => !t.done).slice(0, 4) })),
   );
 
   const startOfDay = new Date(now);
@@ -532,7 +551,7 @@ export async function getToday(now = new Date()): Promise<TodayView> {
     })
     .from(logEntries)
     .innerJoin(initiatives, eq(initiatives.id, logEntries.initiativeId))
-    .where(gte(logEntries.createdAt, startOfDay))
+    .where(and(eq(initiatives.ownerId, ownerId), gte(logEntries.createdAt, startOfDay)))
     .orderBy(desc(logEntries.createdAt));
 
   const attentionById = new Map<string, AttentionItem>();
@@ -549,7 +568,7 @@ export async function getToday(now = new Date()): Promise<TodayView> {
     (x, y) => rank[x.reasons[0].kind] - rank[y.reasons[0].kind] || y.reasons.length - x.reasons.length,
   );
 
-  return { now, attention, overdue, dueSoon, stale, waiting, blocked, focus, loggedToday, streak: await getStreak(now) };
+  return { now, attention, overdue, dueSoon, stale, waiting, blocked, focus, loggedToday, streak: await getStreak(ownerId, now) };
 }
 
 // ── Area rollups ────────────────────────────────────────────────────────────
@@ -567,8 +586,8 @@ export type AreaRollup = {
 };
 
 /** One row per area (plus "No area"): status mix, to-do completion, stale/waiting/overdue counts, last activity. */
-export async function getAreaRollups(now = new Date()): Promise<AreaRollup[]> {
-  const all = await listInitiatives({ includeArchived: false });
+export async function getAreaRollups(ownerId: string, now = new Date()): Promise<AreaRollup[]> {
+  const all = await listInitiatives(ownerId, { includeArchived: false });
   const groups = new Map<string, InitiativeWithActivity[]>();
   for (const i of all) groups.set(i.area, [...(groups.get(i.area) ?? []), i]);
   const empty = (): Record<Initiative["status"], number> => ({ idea: 0, in_progress: 0, blocked: 0, waiting: 0, done: 0, archived: 0 });

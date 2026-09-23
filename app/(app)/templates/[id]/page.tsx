@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { deleteTemplate, updateTemplate } from "@/lib/actions";
 import { listAreas } from "@/lib/queries";
 import { getTemplate } from "@/lib/templates";
+import { requireUser } from "@/lib/auth";
 import { TemplateForm } from "@/components/template-form";
 import { Button } from "@/components/ui/button";
 
@@ -16,7 +17,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export default async function EditTemplatePage({ params }: PageProps<"/templates/[id]">) {
   const { id } = await params;
   if (!UUID.test(id)) notFound();
-  const [template, areas] = await Promise.all([getTemplate(id), listAreas()]);
+  const user = await requireUser();
+  const [template, areas] = await Promise.all([getTemplate(user.id, id), listAreas(user.id)]);
   if (!template) notFound();
   const update = updateTemplate.bind(null, template.id);
   const remove = deleteTemplate.bind(null, template.id);

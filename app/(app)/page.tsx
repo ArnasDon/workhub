@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { plainText } from "@/lib/plain-text";
 import { Button } from "@/components/ui/button";
 import { StreakChip } from "@/components/streak-chip";
+import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -25,10 +26,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   const area = typeof sp.area === "string" && sp.area ? sp.area : undefined;
   const archived = sp.archived === "1";
   const now = new Date();
+  const user = await requireUser();
 
-  if (q) return <SearchResults q={q} now={now} />;
+  if (q) return <SearchResults ownerId={user.id} q={q} now={now} />;
 
-  const [items, areas, streak] = await Promise.all([listInitiatives({ includeArchived: archived, area, sort }), listAreas(), getStreak(now)]);
+  const [items, areas, streak] = await Promise.all([listInitiatives(user.id, { includeArchived: archived, area, sort }), listAreas(user.id), getStreak(user.id, now)]);
 
   if (items.length === 0 && !area && !archived) {
     return (
@@ -115,8 +117,8 @@ function groupItems(items: InitiativeWithActivity[], grouping: Grouping) {
     .map(([label, list]) => ({ key: label.toLowerCase().replace(/\W+/g, "-"), label, items: list }));
 }
 
-async function SearchResults({ q, now }: { q: string; now: Date }) {
-  const res = await search(q);
+async function SearchResults({ ownerId, q, now }: { ownerId: string; q: string; now: Date }) {
+  const res = await search(ownerId, q);
   const total = res.initiatives.length + res.entries.length + res.tasks.length;
 
   return (
